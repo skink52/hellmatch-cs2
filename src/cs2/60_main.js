@@ -349,6 +349,7 @@ function infoFor(pe, now) {
   if (pe.helpUntil > now) {
     msg = "R NEXT  F PREV  E USE  SHIFT WALK";
     spec = "CHAT: !SPEC  !AFK  !BACK  !HUD";
+    line2 = "MUSIC: MAIN MENU MUSIC SLIDER";
     if (spectating) spec2 = "MOUSE1/2 SWITCH PLAYER" + (rm.arenas.length > 1 ? "  E NEXT ARENA" : "");
   }
   return { line1, line2, center, spec, spec2, msg, sbar: pe.hudPos };
@@ -388,7 +389,7 @@ function lobbyInfo(pe, now) {
     if (pe.afk) info.spec = "AFK - TYPE !BACK TO PLAY";
     else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
   }
-  if (pe.helpUntil > now) { info.center = "R NEXT  F PREV  E USE"; info.spec = "SHIFT WALK !SPEC !AFK !BACK !HUD"; }
+  if (pe.helpUntil > now) { info.center = "R NEXT  F PREV  E USE"; info.spec = "SHIFT WALK !SPEC !AFK !BACK !HUD"; info.line2 = "MUSIC: MAIN MENU MUSIC SLIDER"; }
   return info;
 }
 

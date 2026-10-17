@@ -32,7 +32,7 @@ Run `map mg_hellmatch` with `bot_quota 5`, or invite a friend. Start the game no
 6. **Kill credit.** Does an arena frag show in the CS2 killfeed with the right killer? About 2 s later, does the victim respawn into the arena?
 7. **Round end.** Does the CS2 round end a few seconds after every arena finishes?
 8. **Teleporters** (MAP01). Does your view face the new direction after teleporting?
-9. **Music.** A track should start when the round starts (console: `[hellmatch] music: DM.. <title>`), play for everyone, follow `snd_musicvolume`, move on to another track when it ends, and stop when the round ends.
+9. **Music.** A track should start when the round starts (console: `[hellmatch] music: DM.. <title>`), play for everyone, follow `snd_menumusic_volume` (the Main Menu Music slider; the in-game Music slider does nothing), move on to another track when it ends, and stop when the round ends.
 10. **Rename.** The loading screen shows the HELLMATCH title and the new map icon; the chat says "HELLMATCH: <mode> - ..." at round start; `!help` shows the controls.
 11. **Lobby.** The bhop area is gone and the lobby is a plain room again (east wall at the original spot, no holes).
 12. **Kill messages.** A long kill message at the top left (for example "...WAS MOWED DOWN BY ...'S CHAINGUN.") wraps onto a second line instead of being cut off. Names longer than 12 characters are shortened on the game HUD only; chat and the scoreboard show the full name.

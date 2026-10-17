@@ -18,11 +18,12 @@ A retro 90s-style deathmatch that runs inside one CS2 map. Up to 64 players, spl
 [*]Boss Battle: everyone in the arena against four waves of creatures and then a boss, three lives each, on the larger levels
 [*]Now and then a deathmatch arena has monsters loose in it, or starts everyone with a particular weapon
 [*]Every frag is a real CS2 kill (killfeed, scoreboard, rank plugins); late joiners take a bot's place instead of waiting
-[*]Music: a theme at the start of each round, then original tracks and the levels' own FM soundtrack (your music volume controls it)
+[*]Music: a theme at the start of each round, then original tracks and the levels' own FM soundtrack (the Main Menu Music volume slider controls it, not the in-game Music slider)
 [/list]
 
 [h2]Controls[/h2]
 W A S D move (always running), Shift walk, mouse aim, Mouse 1 fire, E or Space use (doors, lifts, switches), R or Mouse 2 next weapon, F previous weapon. While watching: Mouse 1 / Mouse 2 change player, E or Space change arena.
+Music too loud or too quiet? It follows the [b]Main Menu Music[/b] slider in the audio settings (snd_menumusic_volume).
 Chat commands (! or /): [b]!help[/b] controls, [b]!hud[/b] status bar size, [b]!hud scores[/b] hide the game HUD while the scoreboard is open, [b]!spec[/b] watch other arenas, [b]!afk[/b] sit out, [b]!back[/b] rejoin.
 
 [h2]How it was made[/h2]
