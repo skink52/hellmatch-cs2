@@ -58,8 +58,11 @@ and the likely workaround.
     respawn modes.
 
 ## Performance and stability
-21. **Server load.** 64 players: Doom sim is cheap; the cost is entity updates (~400 moves per tick at worst).
-    Measure script time with `sv_cheats`-free logging (script prints its own timing every minute).
+21. **Server load (mock, Node, 18 Oct).** Script time per server tick (64-tick server = 15.6 ms for everything):
+    16 players avg 0.44 ms (99% under 1.6), 32 players 0.87 ms (99% under 2.3), 64 players 2.5 ms (99% under 7.2;
+    worst ~15 ms at round start while arenas are built). ~560 engine calls per tick at 64 players, mostly ~175 prop
+    moves that CS2 networks to every client (not measurable in the mock). The console prints the real figure once a
+    minute: `[hellmatch] script time: avg X ms, max Y ms per server tick`. Under ~5 ms avg is comfortable.
 22. **Plugins iterating all entities** each tick (some do) get slower with the map's extra entities (items, effects pools).
 23. **Round restart / mp_restartgame** from plugins clears spawned entities. Script rebuilds on round start; test it.
 
