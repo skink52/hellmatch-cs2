@@ -140,13 +140,15 @@ function checkPosition(thing, x, y) {
   G.validcount++;
   TM.spechit.length = 0;
   if (TM.flags & MF_NOCLIP) return true;
-  let xl = blockX(TM.bbox[2] - MAXRADIUS), xh = blockX(TM.bbox[3] + MAXRADIUS);
-  let yl = blockY(TM.bbox[1] - MAXRADIUS), yh = blockY(TM.bbox[0] + MAXRADIUS);
+  // blockX / blockY written out
+  const L = G.level, ox = L.bmaporgx, oy = L.bmaporgy;
+  let xl = Math.floor((TM.bbox[2] - MAXRADIUS - ox) / BLOCKSIZE), xh = Math.floor((TM.bbox[3] + MAXRADIUS - ox) / BLOCKSIZE);
+  let yl = Math.floor((TM.bbox[1] - MAXRADIUS - oy) / BLOCKSIZE), yh = Math.floor((TM.bbox[0] + MAXRADIUS - oy) / BLOCKSIZE);
   for (let bx = xl; bx <= xh; bx++)
     for (let by = yl; by <= yh; by++)
       if (!blockThingsIterator(bx, by, PIT_CheckThing)) return false;
-  xl = blockX(TM.bbox[2]); xh = blockX(TM.bbox[3]);
-  yl = blockY(TM.bbox[1]); yh = blockY(TM.bbox[0]);
+  xl = Math.floor((TM.bbox[2] - ox) / BLOCKSIZE); xh = Math.floor((TM.bbox[3] - ox) / BLOCKSIZE);
+  yl = Math.floor((TM.bbox[1] - oy) / BLOCKSIZE); yh = Math.floor((TM.bbox[0] - oy) / BLOCKSIZE);
   for (let bx = xl; bx <= xh; bx++)
     for (let by = yl; by <= yh; by++)
       if (!blockLinesIterator(bx, by, PIT_CheckLine)) return false;
@@ -170,7 +172,7 @@ function tryMove(thing, x, y) {
   thing.x = x; thing.y = y;
   setThingPosition(thing);
   if (!(thing.flags & MF_NOCLIP)) {
-    const hits = TM.spechit.slice();
+    const hits = TM.spechit.length ? TM.spechit.slice() : TM.spechit;
     for (let i = hits.length - 1; i >= 0; i--) {
       const ld = hits[i];
       const side = pointOnLineSide(thing.x, thing.y, ld);
@@ -228,42 +230,65 @@ function changeSector(sector, crunch) {
 // ---------------------------------------------------------------- path traversal
 const trace = { x: 0, y: 0, dx: 0, dy: 0 };
 const PT_ADDLINES = 1, PT_ADDTHINGS = 2;
+// intercepts collected by the current pathTraverse (collecting never calls back into the playsim, so one list is safe;
+// the traverse keeps its own reference while it walks them, as callbacks can start another traverse)
+let ptList = null, ptLong = false, ptPositive = false;
+// the trace's bounding box, 1 unit larger all round. A line or thing that can only cross the trace's infinite
+// extension outside this box would get an intercept beyond the trace's ends (frac < 0 or > 1), which the walk
+// never reaches, so it is skipped before any maths. (Not for short traces' line test, which works differently.)
+let ptMinX = 0, ptMaxX = 0, ptMinY = 0, ptMaxY = 0;
+
+function ptAddLine(ld) {
+  let s1, s2;
+  if (ptLong) {
+    const bb = ld.bbox;
+    if (bb[2] > ptMaxX || bb[3] < ptMinX || bb[1] > ptMaxY || bb[0] < ptMinY) return true;
+    s1 = pointOnDivlineSide(ld.x1, ld.y1, trace);
+    s2 = pointOnDivlineSide(ld.x2, ld.y2, trace);
+  } else {
+    s1 = pointOnLineSide(trace.x, trace.y, ld);
+    s2 = pointOnLineSide(trace.x + trace.dx, trace.y + trace.dy, ld);
+  }
+  if (s1 === s2) return true;
+  // interceptVector(trace, line) written out (same arithmetic, no temporary object)
+  const den = ld.dy * trace.dx - ld.dx * trace.dy;
+  const frac = den === 0 ? 0 : ((ld.x1 - trace.x) * ld.dy + (trace.y - ld.y1) * ld.dx) / den;
+  if (frac < 0) return true;
+  ptList.push({ frac, line: ld, thing: null });
+  return true;
+}
+
+function ptAddThing(th) {
+  if (th.x - th.radius > ptMaxX || th.x + th.radius < ptMinX || th.y - th.radius > ptMaxY || th.y + th.radius < ptMinY) return true;
+  let x1_, y1_, x2_, y2_;
+  if (ptPositive) {
+    x1_ = th.x - th.radius; y1_ = th.y + th.radius; x2_ = th.x + th.radius; y2_ = th.y - th.radius;
+  } else {
+    x1_ = th.x - th.radius; y1_ = th.y - th.radius; x2_ = th.x + th.radius; y2_ = th.y + th.radius;
+  }
+  const s1 = pointOnDivlineSide(x1_, y1_, trace), s2 = pointOnDivlineSide(x2_, y2_, trace);
+  if (s1 === s2) return true;
+  const vdx = x2_ - x1_, vdy = y2_ - y1_;
+  const den = vdy * trace.dx - vdx * trace.dy;
+  const frac = den === 0 ? 0 : ((x1_ - trace.x) * vdy + (trace.y - y1_) * vdx) / den;
+  if (frac < 0) return true;
+  ptList.push({ frac, line: null, thing: th });
+  return true;
+}
+
+function byFrac(a, b) { return a.frac - b.frac; }
 
 function pathTraverse(x1, y1, x2, y2, flags, trav) {
   G.validcount++;
   const L = G.level;
   trace.x = x1; trace.y = y1; trace.dx = x2 - x1; trace.dy = y2 - y1;
   const intercepts = [];
-  const addLine = (ld) => {
-    let s1, s2;
-    if (Math.abs(trace.dx) > 16 || Math.abs(trace.dy) > 16) {
-      s1 = pointOnDivlineSide(ld.x1, ld.y1, trace);
-      s2 = pointOnDivlineSide(ld.x2, ld.y2, trace);
-    } else {
-      s1 = pointOnLineSide(trace.x, trace.y, ld);
-      s2 = pointOnLineSide(trace.x + trace.dx, trace.y + trace.dy, ld);
-    }
-    if (s1 === s2) return true;
-    const frac = interceptVector(trace, { x: ld.x1, y: ld.y1, dx: ld.dx, dy: ld.dy });
-    if (frac < 0) return true;
-    intercepts.push({ frac, line: ld, thing: null });
-    return true;
-  };
-  const addThing = (th) => {
-    const tracepositive = (trace.dx > 0) === (trace.dy > 0);
-    let x1_, y1_, x2_, y2_;
-    if (tracepositive) {
-      x1_ = th.x - th.radius; y1_ = th.y + th.radius; x2_ = th.x + th.radius; y2_ = th.y - th.radius;
-    } else {
-      x1_ = th.x - th.radius; y1_ = th.y - th.radius; x2_ = th.x + th.radius; y2_ = th.y + th.radius;
-    }
-    const s1 = pointOnDivlineSide(x1_, y1_, trace), s2 = pointOnDivlineSide(x2_, y2_, trace);
-    if (s1 === s2) return true;
-    const frac = interceptVector(trace, { x: x1_, y: y1_, dx: x2_ - x1_, dy: y2_ - y1_ });
-    if (frac < 0) return true;
-    intercepts.push({ frac, line: null, thing: th });
-    return true;
-  };
+  ptList = intercepts;
+  ptLong = Math.abs(trace.dx) > 16 || Math.abs(trace.dy) > 16;
+  ptPositive = (trace.dx > 0) === (trace.dy > 0);
+  ptMinX = Math.min(x1, x2) - 1; ptMaxX = Math.max(x1, x2) + 1;
+  ptMinY = Math.min(y1, y2) - 1; ptMaxY = Math.max(y1, y2) + 1;
+  const addLine = ptAddLine, addThing = ptAddThing;
   // walk every blockmap cell the segment touches (supercover)
   let bx = blockX(x1), by = blockY(y1);
   const bx2 = blockX(x2), by2 = blockY(y2);
@@ -303,8 +328,10 @@ function pathTraverse(x1, y1, x2, y2, flags, trav) {
       break;
     }
   }
-  intercepts.sort((a, b) => a.frac - b.frac);
-  for (const ic of intercepts) {
+  ptList = null;
+  if (intercepts.length > 1) intercepts.sort(byFrac);
+  for (let i = 0; i < intercepts.length; i++) {
+    const ic = intercepts[i];
     if (ic.frac > 1) break;
     if (!trav(ic)) return false;
   }

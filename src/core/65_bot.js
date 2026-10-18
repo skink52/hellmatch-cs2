@@ -105,6 +105,9 @@ function botWeaponFor(p, dist) {
   return WP_FIST;
 }
 
+const botCands = [];
+function byDistThenOrder(a, b) { return a.d - b.d || a.n - b.n; }
+
 function botThink(arena, p) {
   const cmd = p.cmd;
   const mo = p.mo;
@@ -117,14 +120,17 @@ function botThink(arena, p) {
   if (--b.retarget <= 0) {
     b.retarget = 6 + Math.round((1 - skill) * 8);
     b.aimErr = (P_Random() - 128) / 128 * (1 - skill) * 28;   // a fresh aiming error each time, held until the next
-    /** @type {any} */ let best = null; let bestd = 2500;
+    /** @type {any} */ let best = null;
     arena.run(() => {
+      // the nearest visible enemy (players first on equal distance, as the scan order had it): candidates are
+      // sight-checked nearest first and the first one seen wins, instead of a sight line to everyone in range
+      const cands = botCands; cands.length = 0;
       if (!arena.coop) {
         for (const q of arena.players.values()) {
           if (q === p || q.spectating || q.playerstate !== 'live' || !q.mo) continue;
           if (arena.teamsActive && q.team === p.team) continue;
           const d = Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y);
-          if (d < bestd && checkSight(mo, q.mo)) { best = { mo: q.mo, q }; bestd = d; }
+          if (d < 2500) cands.push({ d, mo: q.mo, q, n: cands.length });
         }
       }
       // monsters: in a deathmatch they only matter when close (no frag for them); in Boss Battle they are the game
@@ -133,16 +139,22 @@ function botThink(arena, p) {
           if (m.info.kind !== 'monster' || m.health <= 0) continue;
           let d = Math.hypot(m.x - mo.x, m.y - mo.y);
           if (!arena.coop) { if (d > 700 && m.target !== mo) continue; d *= 1.5; }
-          if (d < bestd && checkSight(mo, m)) { best = { mo: m, q: null }; bestd = d; }
+          if (d < 2500) cands.push({ d, mo: m, q: null, n: cands.length });
         }
       }
+      if (cands.length > 1) cands.sort(byDistThenOrder);
+      for (let i = 0; i < cands.length; i++) if (checkSight(mo, cands[i].mo)) { best = { mo: cands[i].mo, q: cands[i].q }; break; }
+      cands.length = 0;
       if (!best && (!b.goal || b.goal.removed || (arena.leveltime & 63) === 0)) {
-        let gi = null, gd = 900;
+        let gi = null;
         for (const m of arena.mobjs) {
           if (!(m.flags & MF_SPECIAL)) continue;
           const d = Math.hypot(m.x - mo.x, m.y - mo.y);
-          if (d < gd && Math.abs(m.z - mo.z) < 40 && checkSight(mo, m)) { gi = m; gd = d; }
+          if (d < 900 && Math.abs(m.z - mo.z) < 40) cands.push({ d, mo: m, q: null, n: cands.length });
         }
+        if (cands.length > 1) cands.sort(byDistThenOrder);
+        for (let i = 0; i < cands.length; i++) if (checkSight(mo, cands[i].mo)) { gi = cands[i].mo; break; }
+        cands.length = 0;
         if (b.goal && b.goal.isStart && Math.hypot(b.goal.x - mo.x, b.goal.y - mo.y) > 64) gi = gi || b.goal;
         if (!gi) {
           // no item in sight: head for a visible deathmatch start, which spreads bots around the map

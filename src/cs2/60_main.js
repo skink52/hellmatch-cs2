@@ -291,11 +291,13 @@ function handleRoundEvents() {
 }
 
 // ---------------------------------------------------------------- per-tick work
-function infoFor(pe, now) {
-  const spectating = pe.status === "spectating" && pe.spec;
-  // a spectator sees the arena they are watching (after E / jump that can be another one than their own)
-  const a = (spectating && rm.arenas[pe.spec.arena]) || pe.arena;
-  if (!a) return { line1: "", line2: "", center: "", spec: "", spec2: "" };
+// the arena's own lines (mode and clock, score, centre message) are the same for everyone looking at that arena:
+// worked out once per arena per server tick
+let thinkSerial = 0;
+const arenaLinesMemo = new WeakMap();   // Arena -> { serial, line1, line2, center }
+function arenaLines(a, now) {
+  let m = arenaLinesMemo.get(a);
+  if (m && m.serial === thinkSerial) return m;
   const mode = MODES[a.modeKey];
   let line1 = mode.name;
   // clock: the elimination limit and/or the time left once another arena has finished
@@ -313,9 +315,7 @@ function infoFor(pe, now) {
   let line2 = "";
   if (a.coop && a.director) {
     const d = a.director;
-    const me = pe.player && pe.player.arena === a ? pe.player : null;
-    const lives = me && me.lives !== undefined ? `  LIVES ${Math.max(0, me.lives)}` : "";
-    line2 = (d.wave >= d.cfg.waves ? `${d.left()} TO KILL` : `${d.left()} MONSTERS`) + lives;
+    line2 = d.wave >= d.cfg.waves ? `${d.left()} TO KILL` : `${d.left()} MONSTERS`;   // + the viewer's lives, in infoFor
   } else if (a.teamsActive) {
     if (a.modeKey === "elim") {
       const alive = [0, 0];
@@ -334,6 +334,23 @@ function infoFor(pe, now) {
   if (a.countdown > 0) center = String(Math.ceil(a.countdown / TICRATE));
   else if (cm && now < cm.until) center = cm.text;
   else if (a.finished && a.result) center = hudResult(a.result);
+  if (!m) { m = { serial: 0, line1: "", line2: "", center: "" }; arenaLinesMemo.set(a, m); }
+  m.serial = thinkSerial; m.line1 = line1; m.line2 = line2; m.center = center;
+  return m;
+}
+
+function infoFor(pe, now) {
+  const spectating = pe.status === "spectating" && pe.spec;
+  // a spectator sees the arena they are watching (after E / jump that can be another one than their own)
+  const a = (spectating && rm.arenas[pe.spec.arena]) || pe.arena;
+  if (!a) return { line1: "", line2: "", center: "", spec: "", spec2: "" };
+  const al = arenaLines(a, now);
+  const line1 = al.line1, center = al.center;
+  let line2 = al.line2;
+  if (a.coop && a.director) {
+    const me = pe.player && pe.player.arena === a ? pe.player : null;
+    if (me && me.lives !== undefined) line2 += `  LIVES ${Math.max(0, me.lives)}`;
+  }
   // bottom line (spec) and the line above it (spec2): spectators see who they watch and how to get back in
   let spec = "", spec2 = "", msg = "";
   if (spectating) {
@@ -407,8 +424,7 @@ function lobbyHud(now) {
 }
 
 function spectatorInput(pe, pk) {
-  const pawn = pk.pawn;
-  if (!live(pawn)) return;
+  const pawn = pk.pawn;   // checked by the caller this tick
   let ed = specEdges.get(pe.slot);
   if (!ed) { ed = { next: false, prev: false, arena: false }; specEdges.set(pe.slot, ed); }
   if (pawn.WasInputJustPressed(CSInputs.ATTACK)) ed.next = true;
@@ -422,8 +438,7 @@ function spectatorInput(pe, pk) {
   pk.lastYaw = normAngle(ang.yaw);
 }
 
-function frame(dt) {
-  const now = Instance.GetGameTime();
+function frame(dt, now) {
   soundsThisTick = 0;
   spawnBudget = CONFIG.SPAWN_BUDGET;
   scanPeople(false);
@@ -438,12 +453,15 @@ function frame(dt) {
     nextPlaceCheck = now + 1;
     for (const pe of rm.people.values()) if (pe.status === "none") placeLateJoiner(pe, true);
   }
-  // input for everyone in an arena (every server tick, so short presses are never missed)
+  // input for everyone in an arena. Button edges (weapon switch, spectator keys) are read every server tick so short
+  // presses are never missed; held buttons, movement and view angles only on ticks where a Doom tic runs (what a
+  // tic sees is the last sample before it, so the in-between reads changed nothing)
+  const ticDue = acc + dt >= 1 / TICRATE;
   for (const pe of rm.people.values()) {
     if (pe.status === "playing" && pe.player && !pe.player.isBot) {
       let pk = parked.get(pe.slot);
       if (!pk || !live(pk.pawn)) pk = pe.player.respawnGate === false ? undefined : park(pe.slot);
-      if (pk && sampleInput(pe.slot, pe.player, pk)) rm.markActive(pe.slot);
+      if (pk && sampleInput(pe.slot, pe.player, pk, ticDue, now)) rm.markActive(pe.slot);
       if (pk) applyEdges(pe.player, pk);
     } else if (pe.status === "spectating") {
       let pk = parked.get(pe.slot);
@@ -494,16 +512,20 @@ function frame(dt) {
 const scriptTime = { n: 0, ms: 0, max: 0, next: 0 };
 const clockMs = typeof Date !== "undefined" && typeof Date.now === "function" ? () => Date.now() : null;
 
+let inThink = false;
 function think() {
   const t0 = clockMs ? clockMs() : 0;
+  inThink = true; hudValidThink = false; thinkSerial++;
   hudBudget = CONFIG.HUD_BUDGET;
-  flushSays();
   const now = Instance.GetGameTime();
-  let dt = now - lastTime;
-  lastTime = now;
-  if (!(dt > 0) || dt > 0.25) dt = 1 / 64;
-  if (ready) guard("frame", () => frame(dt));
-  if (ready) guard("music", () => musicTick(now));
+  try {
+    guard("say", flushSays);
+    let dt = now - lastTime;
+    lastTime = now;
+    if (!(dt > 0) || dt > 0.25) dt = 1 / 64;
+    if (ready) guard("frame", () => frame(dt, now));
+    if (ready) guard("music", () => musicTick(now));
+  } finally { inThink = false; hudValidThink = false; }
   if (clockMs && phase === "running") {
     const d = clockMs() - t0;
     scriptTime.n++; scriptTime.ms += d; if (d > scriptTime.max) scriptTime.max = d;

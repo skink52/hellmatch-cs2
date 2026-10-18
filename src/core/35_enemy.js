@@ -15,24 +15,45 @@ const FATSPREAD = 90 / 8;
 function isMonster(mo) { return !!mo && mo.info.kind === 'monster'; }
 
 // ---------------------------------------------------------------- noise: a shot wakes up monsters that can hear it
+// Which sectors a shot reaches (and through how many sound-blocking lines) only depends on which two-sided lines are
+// shut. That is remembered per sector the shot came from until a door or lift opens or shuts a line (openVersion,
+// see movePlane), so a crowd firing from the same rooms doesn't flood the whole level for every shot.
 function noiseAlert(target, emitter) {
   if (!G || !G.monsterCount) return;
   G.validcount++;
-  const soundtarget = target;
-  const recur = (sec, soundblocks) => {
-    if (sec.validcount === G.validcount && sec.soundtraversed <= soundblocks + 1) return;
-    sec.validcount = G.validcount;
-    sec.soundtraversed = soundblocks + 1;
-    sec.soundtarget = soundtarget;
-    for (const l of sec.lines) {
-      if (!(l.flags & ML_TWOSIDED) || !l.backsector) continue;
-      if (lineOpening(l).range <= 0) continue;
-      const other = l.frontsector === sec ? l.backsector : l.frontsector;
-      if (l.flags & ML_SOUNDBLOCK) { if (!soundblocks) recur(other, 1); }
-      else recur(other, soundblocks);
-    }
-  };
-  recur(emitter.sector || G.level.sectorAt(emitter.x, emitter.y), 0);
+  const start = emitter.sector || G.level.sectorAt(emitter.x, emitter.y);
+  const vc = G.validcount;
+  const cache = G.noiseCache || (G.noiseCache = new Map());
+  const hit = cache.get(start);
+  if (hit && hit.ver === (G.openVersion || 0)) {
+    const secs = hit.secs, trav = hit.trav;
+    for (let i = 0; i < secs.length; i++) { const sec = secs[i]; sec.validcount = vc; sec.soundtraversed = trav[i]; sec.soundtarget = target; }
+    return;
+  }
+  const secs = [];
+  noiseFlood(start, 0, target, vc, secs);
+  const trav = new Array(secs.length);
+  for (let i = 0; i < secs.length; i++) trav[i] = secs[i].soundtraversed;
+  cache.set(start, { ver: G.openVersion || 0, secs, trav });
+}
+
+function noiseFlood(sec, soundblocks, soundtarget, vc, secs) {
+  if (sec.validcount === vc) { if (sec.soundtraversed <= soundblocks + 1) return; }
+  else secs.push(sec);
+  sec.validcount = vc;
+  sec.soundtraversed = soundblocks + 1;
+  sec.soundtarget = soundtarget;
+  const lines = sec.lines;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (!(l.flags & ML_TWOSIDED) || !l.backsector) continue;
+    const front = l.frontsector, back = l.backsector;
+    // lineOpening(l).range <= 0, written out
+    if (Math.min(front.ceilingheight, back.ceilingheight) - Math.max(front.floorheight, back.floorheight) <= 0) continue;
+    const other = front === sec ? back : front;
+    if (l.flags & ML_SOUNDBLOCK) { if (!soundblocks) noiseFlood(other, 1, soundtarget, vc, secs); }
+    else noiseFlood(other, soundblocks, soundtarget, vc, secs);
+  }
 }
 
 // ---------------------------------------------------------------- targets

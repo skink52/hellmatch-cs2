@@ -21,6 +21,10 @@ function newPlayer(slot, name) {
     message: '', messageTime: 0,
     stats: { damage: 0, pickups: 0 },
     switchLatch: 0,
+    // set later by the arena, the HUD or the CS2 side; declared here so every player object has one shape (fast reads)
+    arena: undefined, person: undefined, isBot: undefined, lives: undefined, frozen: undefined, pviewz: undefined,
+    face: undefined, faceIdx: undefined, faceTic: undefined, extralight: undefined,
+    respawnGate: undefined, respawnNow: undefined, bot: undefined, wantWeapon: undefined,
   };
 }
 

@@ -14,6 +14,7 @@ class Sector {
     this.validcount = 0;
     this.floorMover = false; this.ceilMover = false;
     this.renderFloor = d[0]; this.renderCeil = d[1];
+    this.soundtraversed = undefined; this.soundtarget = undefined; this.lightNow = undefined;   // set later; one shape
   }
 }
 
@@ -177,13 +178,17 @@ function angleDiff(a, b) { // signed shortest b - a
   return d;
 }
 
+// one shared result object (every caller reads it straight away, before the next call): no garbage per line checked
+const OPENING = { top: 0, bottom: 0, range: 0, lowfloor: 0 };
 function lineOpening(l) {
   const front = l.frontsector, back = l.backsector;
-  if (!back) return { top: 0, bottom: 0, range: 0, lowfloor: 0 };
+  const op = OPENING;
+  if (!back) { op.top = 0; op.bottom = 0; op.range = 0; op.lowfloor = 0; return op; }
   const top = Math.min(front.ceilingheight, back.ceilingheight);
   const bottom = Math.max(front.floorheight, back.floorheight);
-  const lowfloor = Math.min(front.floorheight, back.floorheight);
-  return { top, bottom, range: top - bottom, lowfloor };
+  op.top = top; op.bottom = bottom; op.range = top - bottom;
+  op.lowfloor = Math.min(front.floorheight, back.floorheight);
+  return op;
 }
 
 // Doom's P_Random-style generator (0..255)

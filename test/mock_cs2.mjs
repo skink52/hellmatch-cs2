@@ -8,6 +8,16 @@ import vm from 'node:vm';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const HUMANS = +(process.argv[2] || 10), BOTS = +(process.argv[3] || 6), SECONDS = +(process.argv[4] || 240);
 const OPTS = process.argv[5] || '';
+// 'seed=N': repeatable run (Math.random and the clock are fixed). 'trace': a hash of every call the script makes into
+// CS2 (positions, models, HUD classes, inputs fired, log lines) plus engine calls per tick, so an optimisation can be
+// checked to change nothing: same seed and options -> same hash
+const SEED = (OPTS.match(/seed=(\d+)/) || [])[1];
+if (SEED !== undefined) {
+  let s = +SEED >>> 0;
+  Math.random = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  Date.now = () => 1790000000000;
+}
+const TRACE = OPTS.includes('trace');
 
 const CSInputs = { NONE: 0, FORWARD: 1, BACK: 2, LEFT: 4, RIGHT: 8, WALK: 16, DUCK: 32, JUMP: 64, USE: 128, ATTACK: 256, ATTACK2: 512, RELOAD: 1024, SHOW_SCORES: 2048, LOOK_AT_WEAPON: 4096 };
 for (const [k, v] of Object.entries({ ...CSInputs })) CSInputs[v] = k;
@@ -18,6 +28,9 @@ const CSDamageTypes = { GENERIC: 0, BULLET: 2, BLAST: 64 };
 const CSDamageFlags = { NONE: 0, PREVENT_DEATH: 8, FORCE_DEATH: 16, IGNORE_ARMOR: 64 };
 
 let time = 0;
+let H = 2166136261 >>> 0;
+const th = TRACE ? (str) => { for (let i = 0; i < str.length; i++) H = Math.imul(H ^ str.charCodeAt(i), 16777619) >>> 0; } : () => {};
+const fp = (o) => o ? `${o.x !== undefined ? o.x.toFixed(3) + ',' + o.y.toFixed(3) + ',' + o.z.toFixed(3) : ''}` : '';
 const stats = { teamkills: 0, churn: { join: 0, kick: 0, kickDead: 0, swap: 0, leave: 0 }, moves: 0, teleports: 0, setModel: 0, hudCalls: 0, sounds: 0, skins: 0, spawned: 0, kills: 0, scriptKills: 0, errors: [], msgs: [], cvars: {}, says: [] };
 
 class Entity {
@@ -28,10 +41,10 @@ class Entity {
   GetEntityName() { return this.name; }
   SetEntityName(n) { this.name = n; }
   GetClassName() { return this.cls; }
-  Teleport(o) { stats.teleports++; if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
-  Move(o) { stats.moves++; if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
-  SetModel(m) { stats.setModel++; if (!fs.existsSync(path.join(root, 'out/addon', m))) throw new Error('missing model ' + m); this.model = m; }
-  SetColor(c) { this.color = c; }
+  Teleport(o) { stats.teleports++; th('T' + this.name + fp(o.position) + (o.angles ? o.angles.yaw.toFixed(2) : '') + (o.velocity ? fp(o.velocity) : '')); if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
+  Move(o) { stats.moves++; th('M' + this.name + fp(o.position) + (o.angles ? o.angles.pitch.toFixed(2) + ',' + o.angles.yaw.toFixed(2) : '')); if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
+  SetModel(m) { stats.setModel++; th('S' + this.name + m); if (!fs.existsSync(path.join(root, 'out/addon', m))) throw new Error('missing model ' + m); this.model = m; }
+  SetColor(c) { th('C' + this.name + JSON.stringify(c)); this.color = c; }
   SetParent(p) { this.parent = p; }
   Kill() { this.valid = false; }
   Remove() { this.valid = false; }
@@ -58,7 +71,7 @@ const hudState = new Map();
 const loadingSlots = new Set();   // 'hudwipe': slots whose client drops HUD messages until they pick a team
 class CustomHudLayout extends Entity {
   SetHasClassForPlayer(slot, panel, cls, on) {
-    stats.hudCalls++; const k = panel.replace(/\d+$/, "#"); (stats.hudBy ||= {})[k] = ((stats.hudBy[k]) || 0) + 1; if (!hudIds.has(panel)) throw new Error("unknown HUD panel " + panel);
+    stats.hudCalls++; th('H' + slot + panel + cls + on); const k = panel.replace(/\d+$/, "#"); (stats.hudBy ||= {})[k] = ((stats.hudBy[k]) || 0) + 1; if (!hudIds.has(panel)) throw new Error("unknown HUD panel " + panel);
     if (OPTS.includes('hudwipe') && loadingSlots.has(slot)) return;   // client not ready: the change never arrives
     let m = hudState.get(slot); if (!m) hudState.set(slot, m = new Map());
     if (on) m.set(panel, cls); else if (m.get(panel) === cls) m.delete(panel);
@@ -166,7 +179,7 @@ const timers = [];
 function later(dt, fn) { timers.push({ at: time + dt, fn }); }
 let freezeUntil = 2, roundEnd = 600, roundEnded = false, warmup = false, winFired = null; const winReasons = {};
 const Instance = {
-  Msg: (m) => { const s = String(m); stats.msgs.push(s); if (/error|WARNING/.test(s)) stats.errors.push(s); if (OPTS.includes('v')) console.log(s); },
+  Msg: (m) => { const s = String(m); if (!/script time/.test(s)) th('L' + s); stats.msgs.push(s); if (/error|WARNING/.test(s)) stats.errors.push(s); if (OPTS.includes('v')) console.log(s); },
   GetGameTime: () => time,
   SetThink: (fn) => { thinkFn = fn; },
   SetNextThink: (t) => { nextThink = t; },
@@ -182,7 +195,7 @@ const Instance = {
   GetPlayerController: (s) => players.find((p) => p.slot === s && p.connected),
   ServerCommand: (c) => { const [k, v] = c.split(' '); if (k === 'say') stats.says.push(c.slice(4)); else stats.cvars[k] = v; },
   ClientCommand: () => {},
-  EntFireAtTarget: ({ target, input, value }) => {
+  EntFireAtTarget: ({ target, input, value }) => { th('E' + target.name + input + (value === undefined ? '' : value));
     if (input === 'Skin') stats.skins++;
     else if (input === 'StartSound' && target.name.startsWith('fdm_mus_')) musicEvent(target.name.slice(8), true);
     else if (input === 'StopSound' && target.name.startsWith('fdm_mus_')) musicEvent(target.name.slice(8), false);
@@ -196,6 +209,9 @@ const Instance = {
   GetRoundRemainingTime: () => roundEnd - time,
   SetRoundRemainingTime: (t) => { roundEnd = time + t; },
 };
+const NCALLS = new Map();
+function countMethods(proto, tag) { for (const k of Object.getOwnPropertyNames(proto)) { if (k === 'constructor' || typeof proto[k] !== 'function') continue; const f = proto[k]; const key = tag + '.' + k; proto[k] = function (...a) { NCALLS.set(key, (NCALLS.get(key) || 0) + 1); return f.apply(this, a); }; } }
+if (TRACE) { for (const [c, t] of [[Entity, 'Ent'], [Pawn, 'Pawn'], [Controller, 'Ctrl'], [Camera, 'Cam'], [CustomHudLayout, 'Hud'], [PointTemplate, 'Tpl']]) countMethods(c.prototype, t); countMethods(Instance, 'I'); }
 const api = { Instance, CSInputs, CustomCameraMode, CSMoveType, CSRoundEndReason, CSDamageTypes, CSDamageFlags, CSPlayerPawn: Pawn, CSPlayerController: Controller, BaseModelEntity: Entity, PointTemplate, CustomHudLayout, Entity };
 
 let src = fs.readFileSync(process.env.FDM_SCRIPT || path.join(root, 'out/addon/maps/scripts/freedm.js'), 'utf8');
@@ -368,6 +384,11 @@ function churn() {
   }
 }
 const cams = players.filter((c) => c.pawn && c.pawn.cam).map((c) => c.pawn.cam.mode);
+if (TRACE) {
+  let tot = 0; for (const v of NCALLS.values()) tot += v;
+  console.log('TRACE HASH', H.toString(16));
+  console.log('engine calls per tick', (tot / (SECONDS * 64)).toFixed(1) + ':', [...NCALLS.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => k + ' ' + (v / (SECONDS * 64)).toFixed(1)).join(', '));
+}
 console.log('round end reasons', JSON.stringify(winReasons));
 console.log(`simulated ${SECONDS}s with ${HUMANS} humans + ${BOTS} bots: ${rounds} CS2 rounds ended`);
 console.log(`props spawned ${stats.spawned}, moves ${stats.moves}, teleports ${stats.teleports}, setModel ${stats.setModel}, skins ${stats.skins}, hud calls ${stats.hudCalls}, sounds ${stats.sounds}`);

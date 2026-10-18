@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 08:25 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 12:05 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -396,6 +396,50 @@ Bot-only balance after fixes, 8 bots on the 16 large levels: ~13 victory / 1-2 o
 lose more often (5 of 6 overrun) - small groups may need lives 4 or a smaller budget; judge after a human game.
 Known/accepted: Doom's chase is greedy, so some jitter remains (relocation covers it); mock "blank spectator lines" at
 t=25/45 are the second the !spec was typed (pre-existing, also in the previous script); monster kills still not CS2 kills.
+
+## Update 18 Oct 12:05 - script server time cut by about a third, engine calls halved (Zach 10:46: "further optimise the time the script spends thinking")
+Delivered + sha1-verified: maps/scripts/freedm.js only (a4661dc4). No gameplay change, nothing else to rebuild. NOT YET RUN IN CS2.
+Built from the deployed script's own generated data (levels, sprite models, HUD strings, glyphs, music list), so the
+data parts are byte-identical to what was on the PC; only the code changed.
+- Proof of no change: test/mock_cs2.mjs has two new options. `seed=N` fixes Math.random and the clock (the playsim's
+  P_Random seeds from Date.now) so a run repeats exactly; `trace` hashes every call the script makes into CS2
+  (positions/angles to 0.001, models, colours, skins, sounds, HUD classes, log lines) and counts engine calls per tick.
+  Old and new script give the same hash in 10 scenarios (deathmatch 64 players, bossonly, elimonly, monsters, churn,
+  spec, churn+hudcheck, afk+disc, churn+resetfirst, churn+hudwipe+noboss); test/sim.cjs and audit_monsters.cjs give
+  identical results (only the timing columns differ); a fuzz test of 192k path traces / sight checks over all 32
+  levels against the old code: 0 differences. hudcheck 0, tsc clean.
+- Script time per server tick (mock, Node, seed=11, before -> after): 16 players avg 0.65 -> 0.44 ms (p99 2.2 -> 1.6);
+  32 players 1.22 -> 0.87 (p99 3.2 -> 2.3); 64 players 3.73 -> 2.46 (p99 10.8 -> 7.2, worst tick 35 -> 15).
+  Engine calls per tick at 64 players 1175 -> 560 (IsValid 513 -> 38, input reads 326 -> 218, GetGameTime 34 -> 3);
+  these are native calls the Node numbers don't fully price, so the saving in CS2 should be larger than the timings.
+What changed:
+- Renderer (20_render.js): no IsValid() per prop per tick (a removed prop is caught by try/catch and checked once, the
+  old behaviour after that); sprite -> model path cached per frame; stamp instead of a new Set per update; the sweep
+  for vanished things only runs when something vanished.
+- Cameras (40_players.js): no IsValid() on the camera per tick (same try/catch pattern).
+- Input: weapon-switch edges still read every server tick; held buttons only on ticks where a Doom tic runs (a tic only
+  ever saw the last sample, so the in-between reads changed nothing); view angles still every tick (view lock after a
+  teleport and AFK turning depend on them). Pawn validity checked once per tick, not three times.
+- HUD (30_hud.js, 60_main.js): the HUD entity is checked once per think instead of on every class change; the arena's
+  lines (mode/clock, score, centre text) are worked out once per arena per tick instead of per viewer; message wrap,
+  weapon and number class names cached; number lines remember the number, not a built string.
+- Playsim: line openings return one shared object (every caller reads it at once); path traversal without per-call
+  closures or temporary objects, and lines/things whose box can't meet the trace are skipped before the maths (they
+  could only give intercepts past the trace's ends, which the walk never reaches; long traces only); collision block
+  maths inlined; noise flood (monsters hearing shots) cached per source sector until a door/lift opens or shuts a line
+  (movePlane counts shut lines before/after); bots sight-check enemy and item candidates nearest first and stop at the
+  first one seen (same pick as before, ties in the old scan order) instead of a sight line to everyone in range.
+- Object shapes: map objects, players and sectors declare all their late-added fields up front (undefined), so V8
+  keeps one hidden class per kind and property reads stay fast (worth ~10% on its own). Every check on those fields is
+  `=== undefined` / `!== undefined`, so nothing reads them differently.
+- think() now always reschedules itself (finally), and a throw from the chat queue can't stop the think loop.
+Noticed, not changed:
+- The script on the PC (and so this one) knows 502 sprite models; a fresh build from today's Freedoom makes 505
+  (VILE_0/1/2, the summoner's attack frames past Z), so those three frames draw nothing for a few tics. Fix = rebuild
+  models + script together (models first).
+- One mock run before the clock was fixed moved a thing to y=16389 (outside CS2's +-16384) in a Boss Battle arena:
+  some projectile or knocked-back thing left its level far into the void. Not reproduced with fixed seeds; worth a
+  clamp or removal if CS2 logs bad positions.
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).

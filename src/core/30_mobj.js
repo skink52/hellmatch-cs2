@@ -16,6 +16,11 @@ function spawnMobj(x, y, z, type) {
     validcount: 0, removed: false, spawnpoint: null,
     // render interpolation
     px: x, py: y, pz: z, pangle: 0, rev: 0, teleported: true,
+    // filled in later for some things only; declared here so every map object has the same shape (V8 then keeps
+    // property reads fast everywhere instead of falling back to slow lookups)
+    movedir: undefined, movecount: undefined, threshold: undefined, lastlook: undefined,
+    wave: undefined, maxHealth: undefined, idleSince: undefined, bestNear: undefined, progressAt: undefined,
+    spawnedBy: undefined, corpseColor: undefined, boss: undefined,
   };
   if (info.kind === 'monster') {
     mo.movedir = DI_NODIR; mo.movecount = 0; mo.threshold = 0; mo.lastlook = P_Random() & 3;

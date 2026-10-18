@@ -50,31 +50,21 @@ function unpark(slot) {
   });
 }
 
-function setCamMode(pk, mode) {
-  if (pk.camMode === mode || !live(pk.cam)) return;
-  pk.cam.SetMode(mode); pk.camMode = mode;
-}
 
-// called every server tick for players in an arena: sample input
-function sampleInput(slot, p, pk) {
+// called every server tick for players in an arena (pawn already checked this tick): sample input.
+// Edge presses (weapon switch) every tick; the rest only when a Doom tic follows (sampleAll)
+const IN_FORWARD = CSInputs.FORWARD, IN_BACK = CSInputs.BACK, IN_LEFT = CSInputs.LEFT, IN_RIGHT = CSInputs.RIGHT, IN_ATTACK = CSInputs.ATTACK;
+const IN_WALK = CSInputs[CONFIG.WALK_KEY];
+const IN_USE = CONFIG.USE_KEYS.map((k) => CSInputs[k]);
+const IN_NEXT = CONFIG.NEXT_WEAPON.map((k) => CSInputs[k]);
+const IN_PREV = CONFIG.PREV_WEAPON.map((k) => CSInputs[k]);
+function sampleInput(slot, p, pk, sampleAll, now) {
   const pawn = pk.pawn;
-  if (!live(pawn)) return;
-  const pressed = (n) => pawn.IsInputPressed(CSInputs[n]);
-  const just = (n) => pawn.WasInputJustPressed(CSInputs[n]);
-  const fwd = pressed("FORWARD") ? 1 : 0, back = pressed("BACK") ? 1 : 0;
-  const left = pressed("LEFT") ? 1 : 0, right = pressed("RIGHT") ? 1 : 0;
-  const walk = pressed(CONFIG.WALK_KEY);
-  p.cmd.forwardmove = (fwd - back) * (walk ? 25 : 50);
-  p.cmd.sidemove = (right - left) * (walk ? 24 : 40);
-  let buttons = 0;
-  if (pressed("ATTACK")) buttons |= BT_ATTACK;
-  for (const k of CONFIG.USE_KEYS) if (pressed(k)) buttons |= BT_USE;
-  p.cmd.buttons = buttons;
-  for (const k of CONFIG.NEXT_WEAPON) if (just(k)) pk.edges.next = true;
-  for (const k of CONFIG.PREV_WEAPON) if (just(k)) pk.edges.prev = true;
+  for (let i = 0; i < IN_NEXT.length; i++) if (pawn.WasInputJustPressed(IN_NEXT[i])) pk.edges.next = true;
+  for (let i = 0; i < IN_PREV.length; i++) if (pawn.WasInputJustPressed(IN_PREV[i])) pk.edges.prev = true;
+  // view angles every tick (the view lock after a teleport and AFK turning both follow them)
   const ang = pawn.GetEyeAngles();
   let yaw = normAngle(ang.yaw);
-  const now = Instance.GetGameTime();
   if (pk.lockYaw !== null) {
     // after a teleport the client needs a moment to accept the new view angle
     if (now < pk.lockUntil && Math.abs(angleDiff(yaw, pk.lockYaw)) > 2) yaw = pk.lockYaw;
@@ -82,9 +72,19 @@ function sampleInput(slot, p, pk) {
   }
   p.cmd.angle = yaw;
   p.pitch = ang.pitch;
-  const active = fwd || back || left || right || buttons || Math.abs(angleDiff(pk.lastYaw, yaw)) > 2 || Math.abs(ang.pitch - pk.lastPitch) > 2;
+  const turned = Math.abs(angleDiff(pk.lastYaw, yaw)) > 2 || Math.abs(ang.pitch - pk.lastPitch) > 2;
   pk.lastYaw = yaw; pk.lastPitch = ang.pitch;
-  return active;
+  if (!sampleAll) return turned;
+  const fwd = pawn.IsInputPressed(IN_FORWARD) ? 1 : 0, back = pawn.IsInputPressed(IN_BACK) ? 1 : 0;
+  const left = pawn.IsInputPressed(IN_LEFT) ? 1 : 0, right = pawn.IsInputPressed(IN_RIGHT) ? 1 : 0;
+  const walk = pawn.IsInputPressed(IN_WALK);
+  p.cmd.forwardmove = (fwd - back) * (walk ? 25 : 50);
+  p.cmd.sidemove = (right - left) * (walk ? 24 : 40);
+  let buttons = 0;
+  if (pawn.IsInputPressed(IN_ATTACK)) buttons |= BT_ATTACK;
+  for (let i = 0; i < IN_USE.length; i++) if (pawn.IsInputPressed(IN_USE[i])) { buttons |= BT_USE; break; }
+  p.cmd.buttons = buttons;
+  return fwd || back || left || right || buttons || turned;
 }
 
 function applyEdges(p, pk) {
@@ -102,7 +102,7 @@ function faceView(slot, yaw) {
 
 // camera placement for a player looking through a Doom player's eyes (their own or a spectated one)
 function placeCamera(pk, view, alpha, controlled) {
-  if (!live(pk.cam)) return;
+  if (!pk.cam || pk.camDead) return;
   const mo = view.player.mo;
   if (!mo) return;
   const v = view.arenaView;
@@ -116,12 +116,20 @@ function placeCamera(pk, view, alpha, controlled) {
   // the eye sits a little in front of the marine's chest so players never look out through their own model
   if (CONFIG.EYE_FORWARD) { const a = mo.angle * Math.PI / 180; x += Math.cos(a) * CONFIG.EYE_FORWARD; y += Math.sin(a) * CONFIG.EYE_FORWARD; }
   const pos = v.world(x, y, z);
-  if (controlled) {
-    setCamMode(pk, CustomCameraMode.CONTROLLED);
-    const pitch = view.player === view.self ? 0 : Math.max(-60, Math.min(60, view.player.pitch || 0));
-    pk.cam.Move({ position: pos, angles: { pitch, yaw: mo.angle, roll: 0 } });
-  } else {
-    setCamMode(pk, CustomCameraMode.CONTROLLED_POSITION);
-    pk.cam.Move({ position: pos });
-  }
+  // no IsValid() every tick: a camera removed under us makes the call throw (or do nothing); it is checked then
+  try {
+    if (controlled) {
+      setCamModeLive(pk, CustomCameraMode.CONTROLLED);
+      const pitch = view.player === view.self ? 0 : Math.max(-60, Math.min(60, view.player.pitch || 0));
+      pk.cam.Move({ position: pos, angles: { pitch, yaw: mo.angle, roll: 0 } });
+    } else {
+      setCamModeLive(pk, CustomCameraMode.CONTROLLED_POSITION);
+      pk.cam.Move({ position: pos });
+    }
+  } catch (err) { if (!live(pk.cam)) pk.camDead = true; else throw err; }
+}
+// setCamMode for a camera already in use this tick
+function setCamModeLive(pk, mode) {
+  if (pk.camMode === mode) return;
+  pk.cam.SetMode(mode); pk.camMode = mode;
 }

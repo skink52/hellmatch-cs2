@@ -4,7 +4,27 @@
 
 const PLANE_OK = 0, PLANE_CRUSHED = 1, PLANE_PASTDEST = 2;
 
+// shut two-sided lines around a sector (a door or lift moving can only open or only shut lines in one move)
+function shutLines(sector) {
+  let n = 0;
+  const lines = sector.lines;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (!(l.flags & ML_TWOSIDED) || !l.backsector) continue;
+    const front = l.frontsector, back = l.backsector;
+    if (Math.min(front.ceilingheight, back.ceilingheight) - Math.max(front.floorheight, back.floorheight) <= 0) n++;
+  }
+  return n;
+}
+
 function movePlane(sector, speed, dest, crush, floorOrCeiling, direction) {
+  const shut = shutLines(sector);
+  const r = movePlaneHeights(sector, speed, dest, crush, floorOrCeiling, direction);
+  if (shutLines(sector) !== shut) G.openVersion = (G.openVersion || 0) + 1;   // noise paths changed (noiseAlert)
+  return r;
+}
+
+function movePlaneHeights(sector, speed, dest, crush, floorOrCeiling, direction) {
   if (floorOrCeiling === 0) {
     if (direction === -1) {
       if (sector.floorheight - speed < dest) {

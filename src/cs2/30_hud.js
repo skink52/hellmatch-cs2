@@ -10,8 +10,10 @@ const HUD_LINE_CHECK = false; // test only: still compare every skipped line pan
 let hudCheckMiss = 0;
 let hudGen = 0;               // goes up whenever the HUD entity is found again (everything gets resent)
 
+let hudValidThink = false;     // true once hudEnt has been checked during the current think (reset each think)
 function hud() {
-  if (live(hudEnt)) return hudEnt;
+  if (hudValidThink && hudEnt) return hudEnt;
+  if (live(hudEnt)) { hudValidThink = inThink; return hudEnt; }
   hudEnt = live(Instance.FindEntityByName(CONFIG.HUD));
   if (!hudEnt) { warnOnce("hud", "no custom_hud_layout named " + CONFIG.HUD + " - no game HUD"); return hudEnt; }
   // a (re)found HUD entity doesn't know what we sent before: clear it and resend everything
@@ -71,7 +73,19 @@ function hudWidth(text) {
 }
 
 // split a message into two lines at a space so each fits the screen width and the line's character slots
+// (the same few messages are wrapped for everyone every tic: remembered)
+const hudWrapMemo = new Map();
 function hudWrap(text, maxPx, maxChars) {
+  const k = maxPx + "|" + maxChars + "|" + text;
+  let r = hudWrapMemo.get(k);
+  if (!r) {
+    if (hudWrapMemo.size > 256) hudWrapMemo.clear();
+    r = hudWrapRaw(text, maxPx, maxChars);
+    hudWrapMemo.set(k, r);
+  }
+  return r;
+}
+function hudWrapRaw(text, maxPx, maxChars) {
   text = String(text || "").toUpperCase();
   const fits = (s) => s.length <= maxChars && hudWidth(s) <= maxPx;
   if (fits(text)) return [text, ""];
@@ -105,8 +119,11 @@ function hudText(slot, prefix, len, text) {
 }
 
 function hudNumber(slot, prefix, digits, value, kind, showZero) {
-  // right-aligned digits; kind: "b" big red, "y" small yellow, "g" small grey
-  const key = kind + (value === null ? "-" : Math.floor(value));
+  // right-aligned digits; kind: "b" big red, "y" small yellow, "g" small grey. The remembered key is the number
+  // itself (each number panel always has the same kind), so nothing is built for a number that hasn't changed
+  let key;
+  if (value === null) key = "-";
+  else { key = Math.floor(value); if (key !== key) key = "NaN"; }
   const same = hudSame(slot, prefix, key);
   if (same && !HUD_LINE_CHECK) return;
   const gen = hudGen;
@@ -178,11 +195,23 @@ function updateFace(p) {
 }
 
 // ---------------------------------------------------------------- per player HUD refresh
+const weaponClassMemo = [];
 function weaponClass(psp) {
   if (!psp || psp.state === S_NULL) return null;
-  const st = STATES[psp.state];
-  return "w_" + st.sprite.toLowerCase() + "_" + String.fromCharCode(97 + st.frame);
+  let c = weaponClassMemo[psp.state];
+  if (c === undefined) {
+    const st = STATES[psp.state];
+    c = weaponClassMemo[psp.state] = "w_" + st.sprite.toLowerCase() + "_" + String.fromCharCode(97 + st.frame);
+  }
+  return c;
 }
+// class names built once
+const HUD_SY = Array.from({ length: 25 }, (_, i) => "sy" + i);
+const HUD_FB = Array.from({ length: 16 }, (_, i) => "fb" + i);
+const HUD_RED = Array.from({ length: 9 }, (_, i) => "red" + i);
+const HUD_GOLD = Array.from({ length: 5 }, (_, i) => "gold" + i);
+const HUD_FACE = [];
+const HUD_AMC = ["fdm_am0c", "fdm_am1c", "fdm_am2c", "fdm_am3c"], HUD_AMM = ["fdm_am0m", "fdm_am1m", "fdm_am2m", "fdm_am3m"];
 
 function hudOptions(slot) {
   const pe = rm && rm.person(slot);
@@ -202,7 +231,7 @@ function hudPlayer(slot, p, arena, info) {
   // raising/lowering moves the gun in steps; the walking bob is a CSS animation on the client
   const ready = wp.state !== S_NULL && STATES[wp.state].action === "A_WeaponReady";
   const sy = ready ? 0 : Math.max(0, Math.min(24, Math.round((wp.sy - WEAPONTOP) / 4)));
-  hudSwap(slot, "fdm_wpn", "sy" + sy);
+  hudSwap(slot, "fdm_wpn", HUD_SY[sy]);
   const moving = p.mo && p.bob > 4 && p.mo.z <= p.mo.floorz;
   hudSwap(slot, "fdm_wbob", ready && moving ? (p.bob > 10 ? "bob2" : "bob1") : null);
   // numbers
@@ -213,18 +242,18 @@ function hudPlayer(slot, p, arena, info) {
   const fragVal = arena && arena.teamsActive && p.team >= 0 ? arena.teamScore[p.team] : p.frags;
   hudNumber(slot, "fdm_frag", 3, fragVal, "b");
   for (let i = 0; i < 4; i++) {
-    hudNumber(slot, "fdm_am" + i + "c", 3, p.ammo[i], "y");
-    hudNumber(slot, "fdm_am" + i + "m", 3, p.maxammo[i], "y");
+    hudNumber(slot, HUD_AMC[i], 3, p.ammo[i], "y");
+    hudNumber(slot, HUD_AMM[i], 3, p.maxammo[i], "y");
   }
   if (p.faceTic !== (arena ? arena.leveltime : 0)) { p.faceIdx = updateFace(p); p.faceTic = arena ? arena.leveltime : 0; }
-  hudSwap(slot, "fdm_face", "f" + p.faceIdx);
-  hudSwap(slot, "fdm_faceb", "fb" + (p.color & 15));
+  hudSwap(slot, "fdm_face", HUD_FACE[p.faceIdx] || (HUD_FACE[p.faceIdx] = "f" + p.faceIdx));
+  hudSwap(slot, "fdm_faceb", HUD_FB[p.color & 15]);
   // screen tint (Doom's palette shifts)
   let tint = null;
   let cnt = p.damagecount;
   if (p.powers[PW_STRENGTH]) { const bzc = 12 - (p.powers[PW_STRENGTH] >> 6); if (bzc > cnt) cnt = bzc; }
-  if (cnt) tint = "red" + Math.min(8, (cnt + 7) >> 3);
-  else if (p.bonuscount) tint = "gold" + Math.min(4, (p.bonuscount + 7) >> 3);
+  if (cnt) tint = HUD_RED[Math.min(8, (cnt + 7) >> 3)];
+  else if (p.bonuscount) tint = HUD_GOLD[Math.min(4, (p.bonuscount + 7) >> 3)];
   else if (p.powers[PW_INVULN] > 4 * 32 || (p.powers[PW_INVULN] & 8)) tint = "invul";
   hudSwap(slot, "fdm_flash", tint);
   hudSwap(slot, "fdm_team", arena && arena.teamsActive && p.team >= 0 ? (p.team === 0 ? "teamred" : "teamblue") : null);

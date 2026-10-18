@@ -31,7 +31,7 @@ function newProp() {
   const ent = ents[0];
   const name = "fdm_p" + (++propSerial);
   try { ent.SetEntityName(name); } catch (err) { /* ignore */ }
-  return { ent, name, model: "", skin: 0, color: -1, hidden: true, lastPos: null, yaw: 0 };
+  return { ent, name, model: "", skin: 0, color: -1, hidden: true, lastPos: null, yaw: 0, stamp: 0, dead: false, fx: false };
 }
 
 function takeProp() {
@@ -51,9 +51,17 @@ function releaseProp(p) {
   freeProps.push(p);
 }
 
+// sprite -> frame -> model path (or null), worked out once per sprite frame
+const spriteModelCache = new Map();
 function spriteModel(sprite, frame) {
-  const key = sprite + "_" + (frame < 26 ? String.fromCharCode(97 + frame) : String(frame - 26));   // frames past Z are keyed 0 1 2
-  return SPRITE_MODELS[key] ? "models/fdm/spr/" + key.toLowerCase() + ".vmdl" : null;
+  let frames = spriteModelCache.get(sprite);
+  if (!frames) { frames = []; spriteModelCache.set(sprite, frames); }
+  let m = frames[frame];
+  if (m === undefined) {
+    const key = sprite + "_" + (frame < 26 ? String.fromCharCode(97 + frame) : String(frame - 26));   // frames past Z are keyed 0 1 2
+    m = frames[frame] = SPRITE_MODELS[key] ? "models/fdm/spr/" + key.toLowerCase() + ".vmdl" : null;
+  }
+  return m;
 }
 
 // sprites whose models were carved from their 8 rotations face the way the thing looks
@@ -66,6 +74,7 @@ class ArenaView {
     this.fxCount = 0;
     this.movers = [];
     this.anims = [];
+    this.stamp = 0;             // goes up every update; props drawn this update carry it (no per-update Set)
     this.off = arena.level.off;
     this.findMovers();
     this.findAnims();
@@ -114,10 +123,10 @@ class ArenaView {
       Instance.EntFireAtTarget({ target: an.ent, input: "Skin", value: skin });
     }
     // things
-    const seen = new Set();
+    const stamp = ++this.stamp;
+    let drawn = 0;
     for (const mo of a.mobjs) {
       if (mo.info.kind === "teleportdest") continue;
-      seen.add(mo.id);
       let p = this.props.get(mo.id);
       const isFx = mo.info.kind === "fx";
       if (!p) {
@@ -129,10 +138,15 @@ class ArenaView {
         p.hidden = false; p.lastPos = null; p.model = ""; p.color = -1; p.skin = -1;
         mo.teleported = true;
       }
-      this.drawThing(mo, p, alpha);
+      p.stamp = stamp; drawn++;
+      if (p.dead) continue;
+      // no IsValid() per prop per tick: a prop removed under us makes a call throw (or do nothing); then it is
+      // checked once and left alone from then on, as before
+      try { this.drawThing(mo, p, alpha); } catch (err) { if (!live(p.ent)) { p.hidden = true; p.dead = true; } else throw err; }
     }
+    if (drawn === this.props.size) return;   // every prop still has its thing: nothing to give back
     for (const [id, p] of this.props) {
-      if (seen.has(id)) continue;
+      if (p.stamp === stamp) continue;
       this.props.delete(id);
       if (p.fx) this.fxCount--;
       releaseProp(p);
@@ -141,7 +155,6 @@ class ArenaView {
 
   drawThing(mo, p, alpha) {
     const ent = p.ent;
-    if (!live(ent)) { p.hidden = true; return; }
     const own = !!(mo.player && !mo.player.isBot);
     const model = (own && OWN_BODY === "off") ? NULL_MODEL : (spriteModel(mo.sprite, mo.frame) || NULL_MODEL);
     if (model !== p.model) { ent.SetModel(model); p.model = model; }
