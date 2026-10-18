@@ -524,8 +524,12 @@ Noticed, not changed:
 ## Ideas / not done
 - Per-player music on/off (csgo_music plays to everyone; players use snd_musicvolume).
 - Intermission music between rounds (d_fdmint).
-- Boss Battle: more boss variety (summoner swarms, double tripod), a Boss Battle-only music pool, monster kills on
-  the CS2 scoreboard (would need AddScore / a plugin).
+- NEXT BUG-FIX UPDATE (Zach 18 Oct 19:25, not before): theme only at round start of the map's first round and of its
+  first Boss Battle round (once if the same round; CONFIG.MUSIC_OPENER today is every/first/off); monster kills
+  podium like Space Racer (tally monster frags per round, 1st/2nd/3rd get real CS2 kill credit at round end);
+  scrolling walls (MAP13, MAP20) and water animation don't move (look at with a real fix); re-check mid-round joins.
+- Zach's C answers (18 Oct 19:25) are recorded in TESTING_HELLMATCH.md section C (→ lines). Dead bots turning green
+  is accepted (signals a landed kill). Joining CS2's real spectator team is a bit buggy - accepted.
 
 ## Known CS2 limits found
 - cl_draw_only_deathnotices can't be set from a script (CS2 refuses); only sv_disable_radar works server-side.

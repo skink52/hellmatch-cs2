@@ -24,25 +24,44 @@ Run `map mg_hellmatch` with `bot_quota 5`, or invite a friend. Start the game no
 - [ ] Fog: distant areas fade to black.
 
 ## C. Engine questions only a real run can answer
+Answered items stay here as a reference (the → lines), so a problem that comes back can be checked against them.
 1. **Does `cl_draw_only_deathnotices 1` hide the CS2 HUD?** If the radar, health or timer still show, tell me.
+    → ANSWERED 18 Oct: it hides the custom HUD too, so it stays off; the normal CS2 HUD isn't much in the way.
 2. **Is your own body in the way?** Look down while walking: you may see the top of your own marine. If it's distracting I can hide it.
+    → ANSWERED: solved (own body hidden), then the wall see-through issues that followed were solved too.
 3. **Player colours.** Bots should be different colours in free-for-all and red/blue in team modes. If everyone is green, the model skins aren't switching.
+    → ANSWERED 18 Oct: bots get different colours per mode. Dead bodies revert to the green model; that's acceptable for now, as the death animation is a handy sign the kill landed before the CS2 credit arrives.
 4. **Invisibility powerup.** The player should turn into a dark see-through shape.
+    → Not yet seen in a game.
 5. **Scrolling walls** (MAP13, MAP20). Do they scroll, and in the right direction?
+    → ANSWERED 18 Oct: walls don't scroll and water doesn't move. Not worth fixing now; look at it alongside the next real bug fix.
 6. **Kill credit.** Does an arena frag show in the CS2 killfeed with the right killer? About 2 s later, does the victim respawn into the arena?
+    → ANSWERED 18 Oct: works. The CS2 kill comes ~0.5 s after the arena kill; respawning works.
 7. **Round end.** Does the CS2 round end a few seconds after every arena finishes?
+    → ANSWERED 18 Oct: yes, and the team credit works.
 8. **Teleporters** (MAP01). Does your view face the new direction after teleporting?
+    → ANSWERED 18 Oct: yes.
 9. **Music.** A track should start when the round starts (console: `[hellmatch] music: DM.. <title>`), play for everyone, follow `snd_menumusic_volume` (the Main Menu Music slider; the in-game Music slider does nothing), move on to another track when it ends, and stop when the round ends.
+    → ANSWERED: solved; the music follows the Main Menu Music slider.
 10. **Rename.** The loading screen shows the HELLMATCH title and the new map icon; the chat says "HELLMATCH: <mode> - ..." at round start; `!help` shows the controls.
+    → ANSWERED 18 Oct: the loading screen works.
 11. **Lobby.** The bhop area is gone and the lobby is a plain room again (east wall at the original spot, no holes).
+    → ANSWERED 18 Oct: the lobby is plain (the spawn torches stay, which is good).
 12. **Kill messages.** A long kill message at the top left (for example "...WAS MOWED DOWN BY ...'S CHAINGUN.") wraps onto a second line instead of being cut off. Names longer than 12 characters are shortened on the game HUD only; chat and the scoreboard show the full name.
+    → ANSWERED 18 Oct: works.
 13. **Walls up close** (MAP28 especially). Press against walls, ledges too high to step onto, pillars and closed doors while looking around. You should keep seeing wall, never the sky or the room behind it.
+    → ANSWERED 18 Oct: very rarely you can still see through, but no gameplay effect; no more work for now. Report it if it gets worse.
 14. **Spectating.** In a free for all or team deathmatch round, type `!spec`. Above the status bar you should see "SPECTATING <name>" and under it "TYPE !BACK TO PLAY" (the two lines must not overlap). Type `!help`: for 8 seconds the keys and chat commands replace those lines, and the controls show top left. Type `!back`: you're back in. In team elimination or last man standing the bottom line says "YOU PLAY NEXT ROUND" instead and `!back` keeps you watching.
+    → ANSWERED 18 Oct: works as the script intends. Joining CS2's own spectator team (free camera) is a bit buggy; players will learn not to, so it's not an issue.
 15. **Joining mid-round.** Join a running round from a second account or have a friend join. Within about a second of picking T or CT you should be in an arena (or watching, in a one-life round), never standing in the lobby with a knife, and every line on the HUD should be complete (no missing letters).
+    → ANSWERED 18 Oct: appears to work. Keep it on the list to re-check in every bug-fix update.
 16. **Theme music.** Every round should open with the Hellmatch theme (console: `[hellmatch] music: THEME Hellmatch Theme (trailer)`), then a track from the pool follows after a 2-second gap. The generated tracks (GEN01-GEN04) play in free-for-all, team deathmatch and Boss Battle rounds; tell me which ones you like and which to drop.
+    → ANSWERED 18 Oct: the theme plays at round start. Planned change for the next bug-fix update: see the list at the bottom.
 17. **Boss Battle** (18 Oct build). Force it for a test: in `maps/scripts/freedm.js` set `MODE_WEIGHTS` to `{ ffa: 0, tdm: 0, boss: 100, elim: 0, lms: 0 }` (then `disconnect` and run the map again). Check: the round starts with a weapon; "WAVE 1 OF 5" shows in the centre and the top right says "WAVE 1 OF 5" / "N MONSTERS  LIVES 3"; monsters appear with a teleport flash and sound, walk, open doors, shoot and bite; they look like blocky 3D versions of the Freedoom creatures and face the way they walk; the frag box counts your kills; a death takes a life ("LIVES 2") and you respawn; waves follow each other ("WAVE CLEARED", 6 s pause); the 5th wave says "BOSS INCOMING" (chat names the boss); killing it ends the arena with "VICTORY"; the CS2 round score goes to the side with more monster kills. Also check: nobody can hurt a teammate (T or CT) in this mode; being killed by a monster shows in the killfeed as a death with no killer (no -1); the console has no `point_script ... thinking for` spikes when a wave arrives; a spectre (stealth worm) is a dark see-through shape; the arch-vile's (flame bringer's) fire column shows on its target.
+    → ANSWERED 18 Oct (default weights): feels healthy and balanced; maybe could be harder, to be judged in live 16-player tests.
 18. **Monsters in deathmatch.** Set `MONSTER_CHANCE: 1` the same way: every arena then has a few monsters loose in the level ("+ MONSTERS" in the round's chat line). Killing one gives no frag; dying to one costs none and shows a world death in the killfeed. Watch for monsters stuck in walls or floating; tell me the level and where.
-19a. **Boss Battle on big levels (18 Oct 08:xx build).** The chat line at round start should name only the larger levels (MAP24, MAP32, MAP27, MAP23, MAP11, MAP30, MAP09, MAP01, MAP21, MAP04, MAP18, MAP20, MAP31, MAP10, MAP05, MAP22) for Boss Battle rounds. Also check: a teleporter never leaves you overlapping a teammate (you'd both be unable to move; if it happens, say which level), monsters that fall behind reappear near you with a teleport flash within ~25 s, `!spec` then `!back` in a Boss Battle round keeps you watching ("YOU PLAY NEXT ROUND") instead of giving you fresh lives.
+    → ANSWERED 18 Oct (default weights): seen occasionally, no problems reported.
+19a. **Boss Battle on big levels (18 Oct 08:xx build).** (Not tested yet.) The chat line at round start should name only the larger levels (MAP24, MAP32, MAP27, MAP23, MAP11, MAP30, MAP09, MAP01, MAP21, MAP04, MAP18, MAP20, MAP31, MAP10, MAP05, MAP22) for Boss Battle rounds. Also check: a teleporter never leaves you overlapping a teammate (you'd both be unable to move; if it happens, say which level), monsters that fall behind reappear near you with a teleport flash within ~25 s, `!spec` then `!back` in a Boss Battle round keeps you watching ("YOU PLAY NEXT ROUND") instead of giving you fresh lives.
 19b. **Next-mode vote (18 Oct afternoon build).** At the end of a round the centre should say "VOTE NEXT MODE: 10" counting down, the bottom two lines list the modes with their keys and totals ("M1 FFA 0  M2 TDM 0  E ELIM 0" / "R LMS 0  F BOSS 0"), and the top right "YOUR VOTE COUNTS X..." (3 if you topped your arena). Press M1, M2, E, R or F: a `>` marks your pick, the total goes up by your weight and the top right shows "YOUR VOTE: ...". Pressing another key moves your vote; `!tdm` etc in chat do the same. This must work both while you're still looking at your arena and after CS2 restarts the round (standing in the lobby). When it closes: chat says "NEXT MODE: ... (votes ...)", the centre "NEXT: ...", and the next round plays that mode. Play the same mode twice: on the third ballot it must be missing. Holding fire through the end of the round must not cast a vote (the first second is ignored).
 19c. **New bosses, boss music, monster score (18 Oct evening build; needs the map rebuilt, see below).** Force Boss Battle as in 17. The 5th wave's chat line names the boss: besides "assault tripod", "large technospider" and "pain lords" you should now also get "twin tripods" (two cyberdemons; 6+ players) and "summoner swarm" (several summoners spitting deadflares). The arena wins when all of them are dead. Boss Battle rounds play the boss tracks after the theme (console: `[hellmatch] music: E1M8 On the Next Day`, E2M8, E3M8, E4M8), never the deathmatch tracks; other modes never play them. In Boss Battle the scoreboard Score goes up by 2 per monster you kill and 10 for a boss. A flame bringer (arch-vile) stays visible while it attacks (it used to vanish for a moment).
     Map rebuild for this one: the map got 4 music entities (fdm_mus_e1m8 .. e4m8) and 3 model-cache props (fdm_cache_vile_0..2); build it the usual way (Hammer closed, command line), then check the console has no "no point_soundevent named fdm_mus_e..." warning.
@@ -58,3 +77,9 @@ Use `claude/freedm_cs2_server_issues.md` in the project. The biggest risks are A
 - Flickering lights are steady.
 - Bots navigate doors, lifts and teleporters but are still simple. Elimination rounds end after 4 minutes at most.
 - Weapon keys: only next/previous (R, mouse 2, F). CS2 doesn't give scripts the number keys.
+
+## Planned for the next bug-fix update (not now)
+- Theme music: play it at round start only on the first round of the map, and on the first Boss Battle (PvE) round of the map (once, if that is the same round).
+- Monster kills: like Space Racer's podium, tally each player's monster frags over the round and at round end give 1st, 2nd and 3rd real CS2 kill credit.
+- Scrolling walls (MAP13, MAP20) and moving water: look at them alongside a real bug fix.
+- Re-check mid-round joining (C15).
