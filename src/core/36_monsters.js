@@ -83,7 +83,8 @@ class MonsterDirector {
   // the boss (and an escort) for this arena: whoever actually fits in the level
   planBoss(n) {
     const m = Math.max(0.5, Math.min(2.2, 0.35 + 0.1 * Math.min(16, n)));   // health scale by player count
-    const fits = (key) => !!this.findSpot(MOBJINFO[MT[key]], 0, true);
+    const known = new Map();   // the same question twice gives the same answer (nothing moves in between)
+    const fits = (key) => { if (!known.has(key)) known.set(key, !!this.findSpot(MOBJINFO[MT[key]], 0, true)); return known.get(key); };
     const options = [];
     if (fits('CYBERDEMON')) options.push({ key: 'cyber', weight: 5 });
     if (n >= 6 && fits('MASTERMIND')) options.push({ key: 'spider', weight: 3 });

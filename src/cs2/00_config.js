@@ -24,6 +24,12 @@ const CONFIG = {
   MAP_BLACKLIST: [],             // e.g. ["m24"] to never pick MAP24
   BOSS_MAP_BLACKLIST: [],        // levels never used for Boss Battle (it picks from the larger half of the levels anyway)
 
+  // ---- next-mode vote (at the end of every round; no third round of one mode in a row)
+  VOTE: true,
+  VOTE_SECONDS: 10,              // how long the ballot is open (the next round waits for it if CS2's own break is shorter)
+  VOTE_TOP_BONUS: 2,             // a vote counts 1 + this x (your frags / the top frags in your arena): top fragger = 3
+  VOTE_KEYS: { ffa: "ATTACK", tdm: "ATTACK2", elim: "USE", lms: "RELOAD", boss: "LOOK_AT_WEAPON" },   // M1 M2 E R F
+
   // ---- kill credit
   REAL_KILLS: true,              // every Doom frag is also a real CS2 kill (killfeed, scoreboard, rank plugins)
   KILL_DELAY: 1.0,               // seconds between the Doom death and the CS2 kill in respawn modes

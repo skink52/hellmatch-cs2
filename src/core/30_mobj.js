@@ -101,7 +101,12 @@ function xyMovement(mo) {
     }
     if (mo.removed) return;
   } while (xmove || ymove);
-  if (mo.flags & (MF_MISSILE | MF_SKULLFLY)) return;   // no friction for missiles or charging skulls
+  if (mo.flags & (MF_MISSILE | MF_SKULLFLY)) {
+    // no friction for missiles or charging skulls. A shot that got out of the level (through a gap in the outline)
+    // would fly on forever into the void, past the edge of the CS2 world on levels near it: it goes away
+    if ((mo.flags & MF_MISSILE) && G.inside && !G.inside(mo.x, mo.y)) removeMobj(mo);
+    return;
+  }
   if (mo.z > mo.floorz) return;
   if (mo.flags & MF_CORPSE) {
     if ((mo.momx > 0.25 || mo.momx < -0.25 || mo.momy > 0.25 || mo.momy < -0.25) && mo.floorz !== mo.sector.floorheight) return;

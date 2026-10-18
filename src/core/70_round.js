@@ -133,7 +133,19 @@ class RoundManager {
     // a team mode only if every arena gets players from both sides; otherwise pick again without team modes
     const excluded = new Set();
     let modeKey, groups;
-    for (let tries = 0; tries < 3; tries++) {
+    // a list = the vote's ranking, best first: the first one that can be played now (enough players, both sides for
+    // a team mode, not a third round in a row) wins; none of them -> picked at random as usual
+    if (Array.isArray(forceMode)) {
+      const smallest = Math.min(...sizes), h = this.modeHistory;
+      for (const k of forceMode) {
+        if (!MODES[k] || smallest < MODES[k].minPlayers || (h.length >= 2 && h[h.length - 1] === k && h[h.length - 2] === k)) continue;
+        const g = this.splitGroups(eligible, sizes, MODES[k].teams);
+        if (MODES[k].teams && !g.every((x) => x.some((p) => p.csTeam === 2) && x.some((p) => p.csTeam === 3) && x.length >= MODES[k].minPlayers)) continue;
+        modeKey = k; groups = g; break;
+      }
+      forceMode = undefined;
+    }
+    if (!modeKey) for (let tries = 0; tries < 3; tries++) {
       modeKey = (tries === 0 && forceMode) || this.pickMode(sizes, excluded);
       groups = this.splitGroups(eligible, sizes, MODES[modeKey].teams);
       if (!MODES[modeKey].teams || groups.every((g) => g.some((p) => p.csTeam === 2) && g.some((p) => p.csTeam === 3) && g.length >= MODES[modeKey].minPlayers)) break;

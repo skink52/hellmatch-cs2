@@ -56,6 +56,7 @@ class Arena {
     this.playerMobjs = [];        // what monsters look for
     this.corpseQueue = [];
     this.monsterKills = 0; this.monsterFrags = false;
+    this.ringCache = new Map();   // fitSpot: search points around a spot (map geometry only)
   }
 
   run(fn) { const prev = G; G = this; try { return fn(); } finally { G = prev; } }
@@ -97,15 +98,31 @@ class Arena {
         const probe = { x: px, y: py, radius, height, flags: MF_SOLID | MF_SHOOTABLE | MF_PICKUP, z: 0, info, player: null };
         return checkPositionProbe(probe, px, py);
       };
+      // every point searched is in this sector, and a thing never has more headroom there than the sector's own
+      // floor-to-ceiling height: too tall for that = fits nowhere (the search below would only confirm it)
+      if (sec.ceilingheight - sec.floorheight < height) return null;
       if (fits(x, y)) return { x, y };
-      for (let r = 4; r <= maxR; r += 4) {
-        const steps = Math.max(8, Math.round(r / 3));
-        for (let k = 0; k < steps; k++) {
-          const nx = x + r * Math.cos(k * 2 * Math.PI / steps), ny = y + r * Math.sin(k * 2 * Math.PI / steps);
-          // must be walkable in a straight line from the original spot: a point just behind the outer wall is
-          // "in the same sector" as far as the map tree is concerned, but it is out in the void
-          if (this.level.sectorAt(nx, ny) === sec && this.inside(nx, ny) && walkableLine(x, y, nx, ny) && fits(nx, ny)) return { x: nx, y: ny };
+      // rings of points around the spot, nearest first, that are in the same sector and inside the outline: that
+      // only depends on the map, so it is worked out once per spot (monster spawn spots are searched every wave)
+      const key = x + ',' + y + ',' + maxR;
+      let ring = this.ringCache.get(key);
+      if (!ring) {
+        ring = [];
+        for (let r = 4; r <= maxR; r += 4) {
+          const steps = Math.max(8, Math.round(r / 3));
+          for (let k = 0; k < steps; k++) {
+            const nx = x + r * Math.cos(k * 2 * Math.PI / steps), ny = y + r * Math.sin(k * 2 * Math.PI / steps);
+            if (this.level.sectorAt(nx, ny) === sec && this.inside(nx, ny)) ring.push(nx, ny);
+          }
         }
+        this.ringCache.set(key, ring);
+      }
+      for (let i = 0; i < ring.length; i += 2) {
+        const nx = ring[i], ny = ring[i + 1];
+        // the thing must fit there, and the point must be walkable in a straight line from the original spot: a point
+        // just behind the outer wall is "in the same sector" as far as the map tree is concerned, but it is out in the
+        // void (fits first: for a big monster that is what fails, and it saves the line trace)
+        if (fits(nx, ny) && walkableLine(x, y, nx, ny)) return { x: nx, y: ny };
       }
       return null;
     });

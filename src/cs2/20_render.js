@@ -5,6 +5,7 @@
 const NULL_MODEL = "models/fdm/null.vmdl";
 const SKIN_FUZZ = 16;
 const HIDE_POS = { x: 0, y: 0, z: -15000 };
+const WORLD_EDGE = 16380;
 
 let propTemplate;
 const ANIM_TICS = 8;
@@ -181,6 +182,12 @@ class ArenaView {
     const lp = p.lastPos;
     if (lp && lp.x === x && lp.y === y && lp.z === z && p.yaw === yaw) return;
     const pos = this.world(x, y, z);
+    // never past the edge of the CS2 world (it refuses such positions): hidden until the thing is back inside
+    if (pos.x > WORLD_EDGE || pos.x < -WORLD_EDGE || pos.y > WORLD_EDGE || pos.y < -WORLD_EDGE || pos.z > WORLD_EDGE || pos.z < -WORLD_EDGE) {
+      if (lp) ent.Teleport({ position: HIDE_POS });
+      p.lastPos = null; mo.teleported = true;
+      return;
+    }
     const ang = { pitch: 0, yaw, roll: 0 };
     if (mo.teleported || !lp || (own && OWN_BODY === "snap")) { ent.Teleport({ position: pos, angles: ang }); mo.teleported = false; }
     else ent.Move({ position: pos, angles: ang });

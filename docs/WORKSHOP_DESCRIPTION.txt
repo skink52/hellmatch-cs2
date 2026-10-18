@@ -14,7 +14,7 @@ A retro 90s-style deathmatch that runs inside one CS2 map. Up to 64 players, spl
 [h2]What's in it[/h2]
 [list]
 [*]32 deathmatch levels from the Freedoom project's FreeDM, rebuilt as CS2 geometry
-[*]One mode per round, the same in every arena: Free for All, Team Deathmatch (T = red, CT = blue), Boss Battle, Team Elimination, Last Man Standing
+[*]One mode per round, the same in every arena: Free for All, Team Deathmatch (T = red, CT = blue), Boss Battle, Team Elimination, Last Man Standing. Players vote for the next one at the end of each round (top fraggers' votes count more, never three of the same in a row)
 [*]Boss Battle: everyone in the arena against four waves of creatures and then a boss, three lives each, on the larger levels
 [*]Now and then a deathmatch arena has monsters loose in it, or starts everyone with a particular weapon
 [*]Every frag is a real CS2 kill (killfeed, scoreboard, rank plugins); late joiners take a bot's place instead of waiting

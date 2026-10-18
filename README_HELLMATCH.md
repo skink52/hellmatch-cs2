@@ -38,7 +38,7 @@ Everything else is plain props:
 ## 3. How it plays
 
 - Players spawn in the lobby. After freeze time everyone on T/CT goes into the arenas: one arena up to 15 players, two from 16 (8 + 8), four from 32 (8 each, up to 16 each), always split evenly. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
-- Each round picks one mode, and every arena plays it (team modes only when every arena gets players from both sides):
+- Each round has one mode, and every arena plays it (team modes only when every arena gets players from both sides). The players vote for it at the end of the round before (below); the first round of a map, or one nobody voted for, picks at random with these chances:
 
   | Mode | Rule | Chance |
   |---|---|---|
@@ -48,6 +48,7 @@ Everything else is plain props:
   | Team elimination | One life each, last team standing | 15% |
   | Last man standing | One life each, last player standing | 10% |
 
+- **Next-mode vote.** When a round ends, a ballot shows on everyone's screen for 10 seconds (`VOTE_SECONDS`): Mouse 1 = free for all, Mouse 2 = team deathmatch, E = team elimination, R = last man standing, F = Boss Battle, or type `!ffa`, `!tdm`, `!elim`, `!lms`, `!boss` (or `!vote <mode>`). Press another key to change your vote; a `>` marks yours and the totals update live. Top fraggers count for more: a vote is worth 1 + 2 x (your frags / the most frags in your arena), so the arena's top fragger counts 3, someone on half the top score 2, someone with none 1 (the top right shows what yours is worth). No mode plays three rounds running: after two in a row it is left off the ballot. Only modes that can be played with the people there are offered (team modes need players on both sides; small groups don't get team modes), and if the winner can't be played when the next round starts (people left), the next-best choice is used. The result goes to chat and the centre of the screen; if CS2's break between rounds is shorter than the vote, the next round waits for it. Bots don't vote.
 - **Boss Battle** (co-op). The arena's players (T and CT together, no damage between them) start with a real weapon and fight waves of Freedoom's creatures: zombies, serpentipedes and flesh worms first, then trilobites, pain bringers, dark soldiers, combat slugs, technospiders and flame bringers. Waves are sized to the number of players and the level. Boss Battle plays on the bigger half of the levels (the biggest quarter twice as often); `BOSS_MAP_BLACKLIST` in the settings removes levels from it. Monsters that lose track of the players for 20 seconds (stuck behind geometry, sniping from a ledge) come back through a teleporter near them, so a wave can't stall. Leaving the arena (`!spec`, AFK, team change) ends your entry for that round: you watch until the next one, like a one-life round. The 5th wave is the boss: an assault tripod (the cyberdemon), a large technospider in bigger arenas, or a pack of pain lords where the big ones don't fit, with an escort. Everyone has 3 lives; out of lives means spectating. The arena wins when the boss dies, loses when everyone is out of lives or 8 minutes pass. The status bar's frag box counts your monster kills; the top-right lines show the wave, what is left to kill and your lives. For the CS2 round, a won Boss Battle arena counts for the side (T or CT) with more monster kills in it. Monster kills aren't CS2 kills (there is no pawn to kill), so rank plugins see no kills in these rounds; dying to a monster is a CS2 death with no attacker.
 - **Monsters in deathmatch**: each free-for-all, team deathmatch, elimination or last-man-standing arena has a 15% chance of having monsters loose in the level (a few, sized to the level; killed ones are replaced after a while). Doom's rules apply: killing a monster is not a frag, dying to one costs no frag (and no CS2 kill against anyone). Monsters fight back at whoever hurts them, players and other monsters alike, and they open doors and use teleporters.
 
@@ -76,13 +77,15 @@ Everything else is plain props:
 | R or Mouse 2 | next weapon |
 | F (inspect) | previous weapon |
 
-Chat (`!` or `/`): `!help` (controls, shown on your own screen; `!controls` and `!hm` work too), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small), `!hud scores` (hide the game HUD while the scoreboard is open; off by default).
+During the end-of-round vote: Mouse 1 / Mouse 2 / E / R / F vote for free for all / team deathmatch / team elimination / last man standing / Boss Battle.
+
+Chat (`!` or `/`): `!ffa` `!tdm` `!elim` `!lms` `!boss` (vote for the next mode while the ballot is up), `!help` (controls, shown on your own screen; `!controls` and `!hm` work too), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small), `!hud scores` (hide the game HUD while the scoreboard is open; off by default).
 
 Frags during CS2 warmup are not sent to the scoreboard.
 
 ## Settings
 
-Open `maps/scripts/freedm.js` and search for `const CONFIG`. The top of that block has the frag limits, mode chances (`MODE_WEIGHTS`, `boss` is Boss Battle), the monster settings (`MONSTER_CHANCE` for deathmatch rounds; `MONSTERS`: waves, lives and the alive cap of Boss Battle; `BOSS_SECONDS`), round length, kill-credit options, AFK times, bot skill, music (`MUSIC`, `MUSIC_OPENER`), and whether the map sets server cvars (`APPLY_CVARS`).
+Open `maps/scripts/freedm.js` and search for `const CONFIG`. The top of that block has the frag limits, mode chances (`MODE_WEIGHTS`, `boss` is Boss Battle; a mode set to 0 is also left off the vote), the vote (`VOTE`, `VOTE_SECONDS`, `VOTE_TOP_BONUS`, `VOTE_KEYS`), the monster settings (`MONSTER_CHANCE` for deathmatch rounds; `MONSTERS`: waves, lives and the alive cap of Boss Battle; `BOSS_SECONDS`), round length, kill-credit options, AFK times, bot skill, music (`MUSIC`, `MUSIC_OPENER`), and whether the map sets server cvars (`APPLY_CVARS`).
 
 When `APPLY_CVARS` is on, the map sets these:
 - `mp_ignore_round_win_conditions` while arenas are running.

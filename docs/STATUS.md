@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 12:05 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 14:50 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -396,6 +396,51 @@ Bot-only balance after fixes, 8 bots on the 16 large levels: ~13 victory / 1-2 o
 lose more often (5 of 6 overrun) - small groups may need lives 4 or a smaller budget; judge after a human game.
 Known/accepted: Doom's chase is greedy, so some jitter remains (relocation covers it); mock "blank spectator lines" at
 t=25/45 are the second the !spec was typed (pre-existing, also in the previous script); monster kills still not CS2 kills.
+
+## Update 18 Oct 14:50 - next-mode vote at the end of every round (Zach 13:44), then more optimising
+Delivered + sha1-verified: maps/scripts/freedm.js (b760c68e), README_HELLMATCH.md, TESTING_HELLMATCH.md (item 19b).
+Script only: no Hammer/map rebuild (the ballot uses the HUD's existing text lines). NOT YET RUN IN CS2.
+Vote (src/cs2/58_vote.js, CONFIG VOTE / VOTE_SECONDS 10 / VOTE_TOP_BONUS 2 / VOTE_KEYS):
+- Opens when the Doom round ends (endDoomRound), for VOTE_SECONDS. Everyone sees it: players still parked on their
+  arena get the lobby HUD (status bar off, text lines on) while a ballot exists, and lobby players get it too.
+  Centre "VOTE NEXT MODE: n", bottom two lines "M1 FFA 3  M2 TDM 0  E ELIM 1" / "R LMS 0  F BOSS 2" (`>` = your pick),
+  top right "YOUR VOTE COUNTS X3" / "YOUR VOTE: FFA (X3)". After it closes: centre "NEXT: <mode>", the tally below,
+  chat "NEXT MODE: ... (votes ...)".
+- Keys (non-movement, so walking about in the lobby never votes): M1 FFA, M2 TDM, E ELIM, R LMS, F BOSS. Chat !ffa
+  !tdm !elim !lms !boss or !vote <mode>. Pressing another key moves your vote. Key presses in the first second are
+  ignored (fire held through the round's end). Bots don't vote. Read with WasInputJustPressed every tick (pawn
+  lookups 4x a second), only while the ballot is open.
+- Weight: 1 + VOTE_TOP_BONUS x clamp(frags / top frags in your arena) -> top fragger 3, half the top score 2, none 1
+  (people not in an arena 1). Snapshot at round end. Leavers' votes are removed.
+- Ballot: modes with MODE_WEIGHTS > 0 that can be played with the people on T/CT now (smallest arena >= minPlayers,
+  team modes only with both sides) and not played the last two rounds (no third in a row). Fewer than 2 options or no
+  humans = no vote. No votes = random as before (pickMode, which already bans a third in a row).
+- RoundManager.startRound(list): the vote's ranking, best first; the first that can be played when the round starts
+  (enough players, both sides for team modes, not a third in a row) wins, else the old random pick. Tie = lot.
+- The next Doom round waits for the ballot (voteBusy) if CS2's restart delay + freeze time is shorter than it.
+Fixes found on the way:
+- Lobby HUD after a round restart: with many players the 600 HUD changes per tick ran out and the rest waited for the
+  next 0.25 s pass, always the same people last; with a busy ballot (totals changing every tick) the last 6-7 people
+  never got drawn. Now a pass that runs out carries on next tick from where it stopped.
+- Shots that escape a level (seen: a pain lord's ball on MAP10, Boss Battle) flew on forever and past the CS2 world
+  edge (+-16384); a missile outside the level's outline is now removed, and the renderer never moves a prop past
+  the edge (hides it instead).
+Further optimising:
+- Boss wave start was the worst tick in the game (50 ms at 64 players: planBoss checking where a cyberdemon /
+  technospider fits ran ~800 probes x 24 spots, twice for the cyberdemon). Now: the same question isn't asked twice;
+  a spot whose sector is lower than the monster is skipped outright (every searched point is in that sector, so it
+  can't fit); the ring of search points per spot is worked out once per arena; fits is tested before the line
+  trace. 50 -> 21 ms. Identical results (trace hashes).
+- HUD text that hasn't changed is recognised before the upper-case conversion (half of hudText's time).
+- Mock: trace hashing costs nothing when off; model-file checks cached. `novote` option = round flow without the vote.
+Checks: with `novote` the trace hashes equal the 12:05 script in all 10 scenarios once the lobby-redraw fix is taken
+out (it changes only when lobby lines are sent); sim.cjs / audit_monsters identical to before today (timings aside);
+10 long mock runs with the vote: 0 errors, no mode three times running, ballot on every human's screen in every
+check, hudcheck 0, screens-vs-script 0, no one left in the lobby. Vote fallbacks checked directly (all on T + voted
+tdm -> next choice; ffa twice + voted ffa -> next choice; too few for tdm -> random).
+Script time per tick (mock, seed=11, 12:05 script -> now): 16 players 0.37 -> 0.36 ms, 32 0.74 -> 0.74, 64 2.25 -> 2.13
+(p99 6.7 -> 6.1, worst 17.6 -> 11.2). Steady state is now the Doom simulation itself (movement, line traces) and
+drawing the things; little exact headroom left without changing how things look or play.
 
 ## Update 18 Oct 12:05 - script server time cut by about a third, engine calls halved (Zach 10:46: "further optimise the time the script spends thinking")
 Delivered + sha1-verified: maps/scripts/freedm.js only (a4661dc4). No gameplay change, nothing else to rebuild. NOT YET RUN IN CS2.

@@ -99,6 +99,8 @@ function hudWrapRaw(text, maxPx, maxChars) {
 
 // Doom font text: one panel per character, classes c<ascii code>
 function hudText(slot, prefix, len, text) {
+  // already showing exactly this (what is remembered is upper case, so an equal string needs no conversion)
+  if (typeof text === "string" && !HUD_LINE_CHECK && hudSame(slot, prefix, text)) return;
   text = String(text || "").toUpperCase();
   const same = hudSame(slot, prefix, text);
   if (same && !HUD_LINE_CHECK) return;

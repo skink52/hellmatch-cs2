@@ -28,6 +28,7 @@ const CSDamageTypes = { GENERIC: 0, BULLET: 2, BLAST: 64 };
 const CSDamageFlags = { NONE: 0, PREVENT_DEATH: 8, FORCE_DEATH: 16, IGNORE_ARMOR: 64 };
 
 let time = 0;
+const modelOk = new Set();
 let H = 2166136261 >>> 0;
 const th = TRACE ? (str) => { for (let i = 0; i < str.length; i++) H = Math.imul(H ^ str.charCodeAt(i), 16777619) >>> 0; } : () => {};
 const fp = (o) => o ? `${o.x !== undefined ? o.x.toFixed(3) + ',' + o.y.toFixed(3) + ',' + o.z.toFixed(3) : ''}` : '';
@@ -41,10 +42,10 @@ class Entity {
   GetEntityName() { return this.name; }
   SetEntityName(n) { this.name = n; }
   GetClassName() { return this.cls; }
-  Teleport(o) { stats.teleports++; th('T' + this.name + fp(o.position) + (o.angles ? o.angles.yaw.toFixed(2) : '') + (o.velocity ? fp(o.velocity) : '')); if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
-  Move(o) { stats.moves++; th('M' + this.name + fp(o.position) + (o.angles ? o.angles.pitch.toFixed(2) + ',' + o.angles.yaw.toFixed(2) : '')); if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
-  SetModel(m) { stats.setModel++; th('S' + this.name + m); if (!fs.existsSync(path.join(root, 'out/addon', m))) throw new Error('missing model ' + m); this.model = m; }
-  SetColor(c) { th('C' + this.name + JSON.stringify(c)); this.color = c; }
+  Teleport(o) { stats.teleports++; TRACE && th('T' + this.name + fp(o.position) + (o.angles ? o.angles.yaw.toFixed(2) : '') + (o.velocity ? fp(o.velocity) : '')); if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
+  Move(o) { stats.moves++; TRACE && th('M' + this.name + fp(o.position) + (o.angles ? o.angles.pitch.toFixed(2) + ',' + o.angles.yaw.toFixed(2) : '')); if (o.position) this.pos = { ...o.position }; if (o.angles) this.ang = { ...o.angles }; check(o.position); }
+  SetModel(m) { stats.setModel++; TRACE && th('S' + this.name + m); if (!modelOk.has(m)) { if (!fs.existsSync(path.join(root, 'out/addon', m))) throw new Error('missing model ' + m); modelOk.add(m); } this.model = m; }
+  SetColor(c) { TRACE && th('C' + this.name + JSON.stringify(c)); this.color = c; }
   SetParent(p) { this.parent = p; }
   Kill() { this.valid = false; }
   Remove() { this.valid = false; }
@@ -71,7 +72,7 @@ const hudState = new Map();
 const loadingSlots = new Set();   // 'hudwipe': slots whose client drops HUD messages until they pick a team
 class CustomHudLayout extends Entity {
   SetHasClassForPlayer(slot, panel, cls, on) {
-    stats.hudCalls++; th('H' + slot + panel + cls + on); const k = panel.replace(/\d+$/, "#"); (stats.hudBy ||= {})[k] = ((stats.hudBy[k]) || 0) + 1; if (!hudIds.has(panel)) throw new Error("unknown HUD panel " + panel);
+    stats.hudCalls++; TRACE && th('H' + slot + panel + cls + on); const k = panel.replace(/\d+$/, "#"); (stats.hudBy ||= {})[k] = ((stats.hudBy[k]) || 0) + 1; if (!hudIds.has(panel)) throw new Error("unknown HUD panel " + panel);
     if (OPTS.includes('hudwipe') && loadingSlots.has(slot)) return;   // client not ready: the change never arrives
     let m = hudState.get(slot); if (!m) hudState.set(slot, m = new Map());
     if (on) m.set(panel, cls); else if (m.get(panel) === cls) m.delete(panel);
@@ -179,7 +180,7 @@ const timers = [];
 function later(dt, fn) { timers.push({ at: time + dt, fn }); }
 let freezeUntil = 2, roundEnd = 600, roundEnded = false, warmup = false, winFired = null; const winReasons = {};
 const Instance = {
-  Msg: (m) => { const s = String(m); if (!/script time/.test(s)) th('L' + s); stats.msgs.push(s); if (/error|WARNING/.test(s)) stats.errors.push(s); if (OPTS.includes('v')) console.log(s); },
+  Msg: (m) => { const s = String(m); if (!/script time/.test(s)) TRACE && th('L' + s); stats.msgs.push(s); if (/error|WARNING/.test(s)) stats.errors.push(s); if (OPTS.includes('v')) console.log(s); },
   GetGameTime: () => time,
   SetThink: (fn) => { thinkFn = fn; },
   SetNextThink: (t) => { nextThink = t; },
@@ -195,7 +196,7 @@ const Instance = {
   GetPlayerController: (s) => players.find((p) => p.slot === s && p.connected),
   ServerCommand: (c) => { const [k, v] = c.split(' '); if (k === 'say') stats.says.push(c.slice(4)); else stats.cvars[k] = v; },
   ClientCommand: () => {},
-  EntFireAtTarget: ({ target, input, value }) => { th('E' + target.name + input + (value === undefined ? '' : value));
+  EntFireAtTarget: ({ target, input, value }) => { TRACE && th('E' + target.name + input + (value === undefined ? '' : value));
     if (input === 'Skin') stats.skins++;
     else if (input === 'StartSound' && target.name.startsWith('fdm_mus_')) musicEvent(target.name.slice(8), true);
     else if (input === 'StopSound' && target.name.startsWith('fdm_mus_')) musicEvent(target.name.slice(8), false);
@@ -219,10 +220,11 @@ src = src.replace(/^import \{[^}]+\} from "cs_script\/point_script";/m, 'const {
 if (OPTS.includes('elimonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 100, lms: 0, boss: 0 }');
 if (OPTS.includes('bossonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 0, lms: 0, boss: 100 }');
 if (OPTS.includes('noboss')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 35, tdm: 35, elim: 20, lms: 10, boss: 0 }');
+if (OPTS.includes('novote')) src = src.replace('VOTE: true', 'VOTE: false');   // the round flow as before the vote
 if (OPTS.includes('monsters')) src = src.replace('MONSTER_CHANCE: 0.15', 'MONSTER_CHANCE: 1');
 if (OPTS.includes('hudcheck')) src = src.replace('const HUD_LINE_CHECK = false;', 'const HUD_LINE_CHECK = true;');
 if (OPTS.includes('nolinecache')) src = src.replace(/function hudSame\(slot, prefix, value\) \{/, 'function hudSame(slot, prefix, value) { return false;');
-src += '\nglobalThis.__dbg = () => ({ rm, views, parked, hudCheckMiss, hudCache, phase });\n';
+src += '\nglobalThis.__dbg = () => ({ rm, views, parked, hudCheckMiss, hudCache, phase, vote: typeof vote === "undefined" ? null : vote });\n';
 const ctx = vm.createContext({ __api: api, console, Math, Date, JSON, Map, Set, Array, Object, String, Number, Error, Infinity, NaN });
 vm.runInContext(src, ctx, { filename: 'freedm.js' });
 
@@ -263,6 +265,19 @@ function specCheck() {
     }
   }
 }
+// next-mode vote: every human sees the ballot while it's open; no mode three rounds running
+let lastRestart = -1;
+const voteSeen = { checks: 0, missing: 0, missingSlots: new Set(), ballots: 0 };
+function voteCheck() {
+  const d = ctx.__dbg();
+  if (!d.vote || !d.vote.open || time < d.vote.inputFrom || time < lastRestart + 0.5) return;   // a restart wipes every HUD: redrawn within a few ticks
+  voteSeen.ballots++;
+  for (const pe of d.rm.people.values()) {
+    if (pe.bot || (OPTS.includes('hudwipe') && loadingSlots.has(pe.slot))) continue;
+    voteSeen.checks++;
+    if (!hudLine(pe.slot, 'fdm_ctr', 24).startsWith('VOTE NEXT MODE')) { voteSeen.missing++; voteSeen.missingSlots.add(pe.slot); if (OPTS.includes('vdbg') && voteSeen.missing < 400) console.log('VOTEMISS t=' + time.toFixed(2), pe.slot, pe.status, d.phase, d.parked.has(pe.slot), JSON.stringify(hudLine(pe.slot, 'fdm_ctr', 24)), (hudState.get(pe.slot) || new Map()).get('fdm_root'), 'ends', d.vote.endsAt.toFixed(2)); }
+  }
+}
 const join = { stranded: new Map(), worst: 0, over2: new Set(), hudBad: 0, hudChecks: 0, hudBadSlots: new Set() };
 function joinCheck() {
   const d = ctx.__dbg();
@@ -285,6 +300,7 @@ while (time < SECONDS) {
   for (const [at, text] of Object.entries(CHATS)) if (Math.abs(time - +at) < TICK / 2 && players[0] && hooks.OnPlayerChat) hooks.OnPlayerChat({ player: players[0], text, team: 0 });
   if (OPTS.includes('spec') && Math.floor(time) !== Math.floor(time - TICK)) specCheck();
   if (OPTS.includes('churn') && Math.floor(time) !== Math.floor(time - TICK)) joinCheck();
+  if (Math.floor(time * 2) !== Math.floor((time - TICK) * 2)) voteCheck();
   // fake human input: move, strafe, turn, shoot, switch weapons
   for (const c of players) {
     const p = c.pawn;
@@ -307,7 +323,7 @@ while (time < SECONDS) {
     roundEnded = true; rounds++; winReasons[winFired] = (winReasons[winFired] || 0) + 1;
     hooks.OnRoundEnd && hooks.OnRoundEnd({ winningTeam: winFired === 9 ? 2 : winFired === 8 ? 3 : 0, reason: winFired === null ? 0 : winFired }); winFired = null;
     later(3, () => {
-      hooks.OnBeginRoundRestart && hooks.OnBeginRoundRestart();
+      hooks.OnBeginRoundRestart && hooks.OnBeginRoundRestart(); lastRestart = time;
       for (const e of spawnedEnts) e.valid = false;
       spawnedEnts.length = 0;
       for (const c of players) if (c.connected) { c.pawn = new Pawn(c); hooks.OnPlayerReset && hooks.OnPlayerReset({ player: c.pawn }); }
@@ -407,6 +423,13 @@ console.log("hud by panel", JSON.stringify(Object.entries(stats.hudBy || {}).sor
 console.log("status bar swaps", (stats.hudBy || {}).fdm_sbarbox || 0);
 console.log('log:', stats.msgs.slice(0, 5).join(' | '));
 console.log(`music: ${music.starts} tracks started (${JSON.stringify(music.byPool)}), ${music.stops} stops, problems ${music.problems.length}`, music.problems.slice(0, 5).join(' | '));
+{
+  const modes = stats.msgs.map((m) => (m.match(/round \d+: (\w+),/) || [])[1]).filter(Boolean);
+  let run3 = 0; for (let i = 2; i < modes.length; i++) if (modes[i] === modes[i - 1] && modes[i] === modes[i - 2]) run3++;
+  const votes = stats.msgs.filter((m) => /\] vote: /.test(m));
+  console.log(`modes: ${modes.join(' ')} | three in a row: ${run3} | votes: ${votes.length} | ballot shown: ${voteSeen.checks - voteSeen.missing} of ${voteSeen.checks} checks (missing for slots ${[...voteSeen.missingSlots].join(',') || '-'})`);
+  for (const v of votes.slice(0, 4)) console.log('  ' + v);
+}
 if (OPTS.includes('spec')) {
   console.log('human0 scenario:\n  ' + spec.lines.join('\n  '));
   console.log('spectator lines seen (seconds):\n  ' + [...spec.seen.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n}x ${k}`).join('\n  '));

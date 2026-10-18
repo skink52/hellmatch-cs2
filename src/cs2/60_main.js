@@ -72,6 +72,7 @@ function scanPeople(force) {
 }
 
 function dropPerson(slot) {
+  voteDrop(slot);
   rm.removePerson(slot);
   parked.delete(slot);
   hudReset(slot);
@@ -96,7 +97,7 @@ function forgetKills(slot) {
 // ---------------------------------------------------------------- round flow
 function startDoomRound() {
   scanPeople(true);
-  if (!rm.startRound()) { startAt = Instance.GetGameTime() + 5; return; }
+  if (!rm.startRound(voteTake())) { startAt = Instance.GetGameTime() + 5; return; }
   phase = "running";
   const respawn = MODES[rm.modeKey].respawn;
   guard("music", () => musicStart(respawn ? "long" : "short"));
@@ -127,6 +128,7 @@ function onArenaBuilt(a) {
 function endDoomRound() {
   if (phase !== "running") return;
   phase = "ending";
+  guard("vote", () => voteStart(Instance.GetGameTime()));
   guard("music", musicStop);
   // elimination kills go to CS2 now, in the order they happened
   if (CONFIG.REAL_KILLS && !Instance.IsWarmupPeriod()) for (const k of elimKills) csKill(k.victim, k.killer);
@@ -407,6 +409,7 @@ function lobbyInfo(pe, now) {
     else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
   }
   if (pe.helpUntil > now) { info.center = "R NEXT  F PREV  E USE"; info.spec = "SHIFT WALK !SPEC !AFK !BACK !HUD"; info.line2 = "MUSIC: MAIN MENU MUSIC SLIDER"; }
+  if (vote && phase !== "running") voteLines(pe, now, info);   // the ballot wins over !help while it is up
   return info;
 }
 
@@ -416,12 +419,24 @@ function lobbyHud(now) {
   lobbyCycle = Math.floor(now / 3);
   lobbyWaiting = 0;
   for (const pe of rm.people.values()) if ((pe.csTeam === 2 || pe.csTeam === 3) && !(pe.afk && !pe.bot)) lobbyWaiting++;
-  for (const pe of rm.people.values()) {
-    if (pe.bot || parked.has(pe.slot)) continue;
+  // when the HUD changes per tick run out (everyone redrawn after a restart, a busy ballot) the next pass carries on
+  // next tick from where this one stopped, so the people late in the list aren't left with a blank screen
+  const list = lobbyList; list.length = 0;
+  for (const pe of rm.people.values()) list.push(pe);
+  const n = list.length;
+  for (let i = 0; i < n; i++) {
+    const k = (lobbyResume + i) % n;
+    const pe = list[k];
+    if (pe.bot || (parked.has(pe.slot) && !vote)) continue;   // the ballot also goes to players still looking at their arena
     if (phase === "running" && pe.status !== "none") continue;
+    if (hudBudget <= 0) { lobbyResume = k; lobbyNext = now; list.length = 0; return; }
     guard("lobbyhud", () => hudLobby(pe.slot, lobbyInfo(pe, now)));
   }
+  lobbyResume = 0;
+  list.length = 0;
 }
+const lobbyList = [];
+let lobbyResume = 0;
 
 function spectatorInput(pe, pk) {
   const pawn = pk.pawn;   // checked by the caller this tick
@@ -443,8 +458,9 @@ function frame(dt, now) {
   spawnBudget = CONFIG.SPAWN_BUDGET;
   scanPeople(false);
   lobbyHud(now);
+  if (vote) voteTick(now);
   if (phase === "lobby") {
-    if (now >= startAt && !Instance.IsFreezePeriod()) startDoomRound();
+    if (now >= startAt && !voteBusy(now) && !Instance.IsFreezePeriod()) startDoomRound();
     return;
   }
   if (phase !== "running") return;
@@ -640,6 +656,11 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
         if (rm.lateJoin(pe) && pe.player && pe.player.mo) faceView(slot, pe.player.mo.angle);
       } else if (pe.status === "none") placeLateJoiner(pe, true);   // standing in the lobby (back from AFK)
     }
+  } else if (vote && vote.open && (VOTE_SHORT[t.slice(1)] || t.startsWith("!vote "))) {
+    // !ffa !tdm !elim !lms !boss, or !vote <mode> (the mode's short or full name)
+    const want = t.startsWith("!vote ") ? t.slice(6).trim() : t.slice(1);
+    const k = VOTE_ORDER.find((m) => m === want || VOTE_SHORT[m].toLowerCase() === want || MODES[m].name.toLowerCase() === want);
+    if (k) voteCast(slot, k);
   } else if (t === "!hud scores" || t === "!hud scoreboard") {
     // per player: hide the Doom HUD while the scoreboard is open
     if (pe) {
