@@ -1,6 +1,6 @@
 # Hellmatch CS2 test: what to check
 
-Each line says what to look for. If something fails, tell me what you saw and I'll fix it with that information. (The game was called "FreeDM Arena" before 17 Oct 2026; the map is now `mg_hellmatch`.)
+Each line says what to look for. **Only report what fails** (what you saw, the level, console lines if any): anything you don't mention counts as passed, so there's no need to send yes/no lists back. (The game was called "FreeDM Arena" before 17 Oct 2026; the map is now `mg_hellmatch`.)
 
 ## A. Open and build
 - [ ] `maps/mg_hellmatch.vmap` opens in Hammer without errors. You should see the three lobby rooms far below and the 32 levels laid out above.
@@ -11,7 +11,7 @@ Each line says what to look for. If something fails, tell me what you saw and I'
 
 ## B. Local test (listen server)
 Run `map mg_hellmatch` with `bot_quota 5`, or invite a friend. Start the game normally, not in warmup.
-- [ ] Console line `[hellmatch] v0.2.0 ready: 32 levels, 502 sprite models, HUD on, prop template on`.
+- [ ] Console line `[hellmatch] v0.2.0 ready: 32 levels, 505 sprite models, HUD on, prop template on`.
 - [ ] After freeze time you're in an arena level and your view moves with WASD.
 - [ ] The textures look sharp and pixelated, not blurry or dark/black.
 - [ ] Movement feels old-school: fast running, sliding along walls, stairs.
@@ -52,7 +52,7 @@ Run `map mg_hellmatch` with `bot_quota 5`, or invite a friend. Start the game no
 Use `claude/freedm_cs2_server_issues.md` in the project. The biggest risks are AFK managers, no-respawn plugins, spawn protection and teamkill punishment.
 
 ## Known gaps (planned next)
-- Monster kills are not CS2 kills (nothing to kill in CS2), so rank plugins don't count them; Boss Battle rounds still credit the CS2 round to a side.
+- Monster kills are not CS2 kills (nothing to kill in CS2): they add Score points in Boss Battle, but the Kills column and rank plugins don't count them without a server plugin (`MONSTER_KILL_COMMAND`); Boss Battle rounds still credit the CS2 round to a side.
 - The Boss Battle difficulty (wave sizes, boss health) is tuned on bots only; expect to adjust `MONSTERS` and the budget in `36_monsters.js` after real games.
 - Monster corpses stay only while they are among the last 24 (each is a prop in CS2).
 - Flickering lights are steady.
