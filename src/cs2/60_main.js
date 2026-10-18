@@ -100,7 +100,9 @@ function startDoomRound() {
   if (!rm.startRound(voteTake())) { startAt = Instance.GetGameTime() + 5; return; }
   phase = "running";
   const respawn = MODES[rm.modeKey].respawn;
-  guard("music", () => musicStart(respawn ? "long" : "short"));
+  // Boss Battle has its own pool (the boss-level tracks), when the map has them
+  const pool = MODES[rm.modeKey].coop && MUSIC_TRACKS.some((t) => t.pool === "boss") ? "boss" : respawn ? "long" : "short";
+  guard("music", () => musicStart(pool));
   cvars(["mp_ignore_round_win_conditions 1"]);
   // one-life rounds keep CS2 respawning on when bots can be replaced: Doom deaths there only reach CS2 at the end
   // of the round, and it gives someone joining mid-round a body so they can take over a bot's marine
@@ -190,6 +192,22 @@ function csKill(victimSlot, killerSlot) {
   return died;
 }
 
+// a monster kill on the CS2 scoreboard: score points with AddScore (a script can't touch the kills column or rank
+// plugins; MONSTER_KILL_COMMAND hands each kill to a server plugin that can)
+function monsterScore(arena, e) {
+  if (!arena.coop && !CONFIG.MONSTER_SCORE_DEATHMATCH) return;
+  const slot = e.killer.slot;
+  const pts = e.boss ? CONFIG.MONSTER_SCORE_BOSS : CONFIG.MONSTER_SCORE;
+  if (pts && !Instance.IsWarmupPeriod()) {
+    const c = controllerOf(slot);
+    if (c) guard("monsterscore", () => c.AddScore(pts));
+  }
+  if (CONFIG.MONSTER_KILL_COMMAND) {
+    const cmd = CONFIG.MONSTER_KILL_COMMAND.replace("{slot}", String(slot)).replace("{boss}", e.boss ? "1" : "0").replace("{monster}", String(e.name).replace(/[^a-z ]/gi, "").replace(/ /g, "_"));
+    guard("monstercmd", () => Instance.ServerCommand(cmd));
+  }
+}
+
 function onDoomKill(arena, e) {
   const v = e.victim, k = e.killer;
   // obituary on the message line of the two players involved (the CS2 killfeed shows everyone)
@@ -258,6 +276,7 @@ function handleArenaEvents(a) {
       case "bossDown": centerMsgs.set(a, { text: e.noBoss ? "WAVE CLEARED" : "BOSS DOWN!", until: Instance.GetGameTime() + 3 }); break;
       case "monsterKill":
         if (e.boss && e.killer) { e.killer.message = `YOU KILLED THE ${String(e.name).toUpperCase()}`; e.killer.messageTime = a.leveltime; }
+        if (e.killer) monsterScore(a, e);
         break;
     }
   }

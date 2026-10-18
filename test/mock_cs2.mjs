@@ -102,9 +102,10 @@ function musicEvent(id, on) {
   if (music.playing && time < music.playing.until - 0.05) music.problems.push(`t=${time.toFixed(1)} ${id} started over ${music.playing.id}`);
   const rm = ctx.__dbg && ctx.__dbg().rm;
   const respawn = rm && { ffa: true, tdm: true, boss: true, elim: false, lms: false }[rm.modeKey];
+  const want = rm && rm.modeKey === 'boss' && [...musicInfo.values()].some((x) => x.pool === 'boss') ? 'boss' : respawn ? 'long' : 'short';
   // the theme (pool opener) opens every round; then the round's own pool
   if (t.pool === 'opener') { if (music.starts > 1 && music.lastRound === rm.roundNumber) music.problems.push(`t=${time.toFixed(1)} theme played twice in round ${rm.roundNumber}`); music.lastRound = rm.roundNumber; }
-  else if (rm && (respawn ? 'long' : 'short') !== t.pool) music.problems.push(`t=${time.toFixed(1)} ${id} (${t.pool}) in a ${rm.modeKey} round`);
+  else if (rm && want !== t.pool) music.problems.push(`t=${time.toFixed(1)} ${id} (${t.pool}) in a ${rm.modeKey} round`);
   music.playing = { id, until: time + t.seconds };
 }
 const hudXml = fs.readFileSync(path.join(root, 'out/addon/panorama/layout/custom_game/freedm.xml'), 'utf8');
@@ -167,7 +168,7 @@ class Controller {
   constructor(slot, name, team, bot, noPawn) { this.slot = slot; this.name = name; this.team = team; this.bot = bot; this.connected = true; this.pawn = noPawn ? null : new Pawn(this); this.score = 0; this.kills = 0; this.deaths = 0; this.brain = { turn: 0 }; }
   GetPlayerSlot() { return this.slot; } GetPlayerName() { return this.name; } GetPlayerPawn() { return this.pawn && this.pawn.valid ? this.pawn : undefined; }
   IsBot() { return this.bot; } IsConnected() { return this.connected; } GetTeamNumber() { return this.team; }
-  AddScore(n) { this.score += n; } GetScore() { return this.score || 0; } JoinTeam(t) { this.team = t; } IsValid() { return this.connected; }
+  AddScore(n) { this.score += n; stats.addScore = (stats.addScore || 0) + n; } GetScore() { return this.score || 0; } JoinTeam(t) { this.team = t; } IsValid() { return this.connected; }
   respawn() { if (!this.connected) return; this.pawn = new Pawn(this); hooks.OnPlayerReset && hooks.OnPlayerReset({ player: this.pawn }); }
 }
 const players = [];

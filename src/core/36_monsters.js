@@ -24,6 +24,8 @@ const MONSTER_OBITS = {
   CYBERDEMON: '%o was splattered by an %m.', MASTERMIND: '%o stood in front of a %m.',
 };
 
+let lastBossKind = null;   // planBoss: the kind of boss the last Boss Battle arena got
+
 function weightedPick(entries) {
   // entries: [key, weight]
   let total = 0;
@@ -80,22 +82,40 @@ class MonsterDirector {
     return list;
   }
 
-  // the boss (and an escort) for this arena: whoever actually fits in the level
+  // the boss (and an escort) for this arena: whoever actually fits in the level. Five kinds:
+  //   cyber   one assault tripod
+  //   twin    two assault tripods, each with under half the health of a lone one (6+ players)
+  //   spider  a large technospider (6+ players)
+  //   swarm   a swarm of summoners, each spitting deadflares (Doom caps the flares at 20 per level)
+  //   lords   a pack of pain lords
+  // The kind the last Boss Battle arena got is much less likely next time, so rounds don't repeat.
   planBoss(n) {
     const m = Math.max(0.5, Math.min(2.2, 0.35 + 0.1 * Math.min(16, n)));   // health scale by player count
     const known = new Map();   // the same question twice gives the same answer (nothing moves in between)
     const fits = (key) => { if (!known.has(key)) known.set(key, !!this.findSpot(MOBJINFO[MT[key]], 0, true)); return known.get(key); };
-    const options = [];
-    if (fits('CYBERDEMON')) options.push({ key: 'cyber', weight: 5 });
-    if (n >= 6 && fits('MASTERMIND')) options.push({ key: 'spider', weight: 3 });
-    options.push({ key: 'lords', weight: fits('CYBERDEMON') ? 2 : 5 });
-    const pick = weightedPick(options.map((o) => [o.key, o.weight]));
+    const cyber = fits('CYBERDEMON');
+    /** @type {[string, number][]} */ const options = [];
+    if (cyber) options.push(['cyber', 4]);
+    if (cyber && n >= 6) options.push(['twin', 3]);
+    if (n >= 6 && fits('MASTERMIND')) options.push(['spider', 3]);
+    if (fits('PAINELEMENTAL')) options.push(['swarm', 3]);
+    options.push(['lords', cyber ? 2 : 4]);
+    for (const o of options) if (o[0] === lastBossKind && options.length > 1) o[1] *= 0.25;
+    const pick = weightedPick(options);
+    lastBossKind = pick;
     const bosses = [];
-    if (pick === 'cyber') bosses.push({ type: 'CYBERDEMON', health: Math.round(4000 * m) });
-    else if (pick === 'spider') bosses.push({ type: 'MASTERMIND', health: Math.round(3000 * m) });
-    else { const k = 1 + Math.ceil(n / 4); for (let i = 0; i < k; i++) bosses.push({ type: 'BARON', health: Math.round(1000 * (1 + m / 2)) }); }
-    const escort = this.planWave(2, n).slice(0, 2 + Math.floor(n / 3));
-    return { bosses, escort, name: pick === 'lords' ? 'PAIN LORDS' : MOBJINFO[MT[bosses[0].type]].name.toUpperCase() };
+    let name;
+    if (pick === 'cyber') { bosses.push({ type: 'CYBERDEMON', health: Math.round(4000 * m) }); name = 'ASSAULT TRIPOD'; }
+    else if (pick === 'twin') { for (let i = 0; i < 2; i++) bosses.push({ type: 'CYBERDEMON', health: Math.round(1500 * m) }); name = 'TWIN TRIPODS'; }
+    else if (pick === 'spider') { bosses.push({ type: 'MASTERMIND', health: Math.round(3000 * m) }); name = 'LARGE TECHNOSPIDER'; }
+    else if (pick === 'swarm') {
+      const k = 2 + Math.ceil(n / 5);
+      for (let i = 0; i < k; i++) bosses.push({ type: 'PAINELEMENTAL', health: Math.round(400 * (1 + m)) });
+      name = 'SUMMONER SWARM';
+    } else { const k = 1 + Math.ceil(n / 4); for (let i = 0; i < k; i++) bosses.push({ type: 'BARON', health: Math.round(1000 * (1 + m / 2)) }); name = 'PAIN LORDS'; }
+    // the swarm's own flares are its escort, and two tripods are trouble enough: those bring fewer others
+    const escort = this.planWave(2, n).slice(0, pick === 'swarm' || pick === 'twin' ? 1 + Math.floor(n / 4) : 2 + Math.floor(n / 3));
+    return { bosses, escort, name, kind: pick };
   }
 
   // ---------------------------------------------------------------- spawn spots

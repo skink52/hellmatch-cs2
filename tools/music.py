@@ -19,12 +19,17 @@ TARGET = 'I=-16:TP=-1.5:LRA=11'
 POOLS = {
     'long': ['dm05', 'dm10', 'dm17', 'dm21', 'dm26'],
     'short': ['dm02', 'dm14', 'dm23', 'dm29'],
+    # Boss Battle only: the boss-level tracks of Freedoom's Phase 1 episodes
+    'boss': ['e1m8', 'e2m8', 'e3m8', 'e4m8'],
 }
 
 def titles():
-    txt = open(os.path.join(assets.FD, 'CREDITS-MUSIC'), encoding='utf-8').read()
-    sec = txt.split('--FreeDM--', 1)[1].split('\n--', 1)[0]
-    return {m.group(1).lower(): (m.group(2), m.group(3).strip()) for m in re.finditer(r'(DM\d\d): "([^"]+)" by (.+)', sec)}
+    # every current track (Phase 1, Phase 2, FreeDM); the 'Previously Featured' lists after them are old versions
+    txt = open(os.path.join(assets.FD, 'CREDITS-MUSIC'), encoding='utf-8').read().split('--Previously Featured', 1)[0]
+    out = {}
+    for m in re.finditer(r'((?:DM|MAP)\d\d|E\dM\d): "([^"]+)" by (.+)', txt):
+        out.setdefault(m.group(1).lower(), (m.group(2), m.group(3).strip()))
+    return out
 
 def render(tid):
     os.makedirs(CACHE, exist_ok=True)
@@ -93,7 +98,7 @@ os.makedirs(os.path.join(OUT, '_gen'), exist_ok=True)
 json.dump(tracks, open(os.path.join(OUT, '_gen/music.json'), 'w'), indent=1)
 lines = ['Hellmatch music.', '',
          'Theme (opens every round) and generated tracks: original music made for Hellmatch, see below.',
-         'Level tracks from Freedoom\'s FreeDM, BSD licence like the rest of Freedoom, rendered from the original MIDI',
+         'Level tracks from Freedoom (FreeDM, and the Phase 1 boss levels for Boss Battle), BSD licence like the rest of Freedoom, rendered from the original MIDI',
          'with libADLMIDI (Nuked OPL3 emulator) and the DMXOPL3 FM instrument bank by Shannon "Sneakernets" Freeman (MIT licence).', '']
 lines += ['%-7s %-34s %s' % (t['id'].upper(), t['title'], t['by']) for t in tracks]
 open(os.path.join(OUT, 'MUSIC_CREDITS.txt'), 'w', newline='\n').write('\n'.join(lines) + '\n')

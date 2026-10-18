@@ -30,6 +30,12 @@ const CONFIG = {
   VOTE_TOP_BONUS: 2,             // a vote counts 1 + this x (your frags / the top frags in your arena): top fragger = 3
   VOTE_KEYS: { ffa: "ATTACK", tdm: "ATTACK2", elim: "USE", lms: "RELOAD", boss: "LOOK_AT_WEAPON" },   // M1 M2 E R F
 
+  // ---- monster kills on the CS2 scoreboard (Score column; the Kills column and rank plugins need a server plugin)
+  MONSTER_SCORE: 2,              // points per monster kill (a CS2 kill is worth 2); 0 = off
+  MONSTER_SCORE_BOSS: 10,        // points for killing a boss
+  MONSTER_SCORE_DEATHMATCH: false, // also for the monsters loose in deathmatch rounds (off: they aren't the game there)
+  MONSTER_KILL_COMMAND: "",      // e.g. "hm_monster_kill {slot} {boss} {monster}": a server command per monster kill, for a plugin
+
   // ---- kill credit
   REAL_KILLS: true,              // every Doom frag is also a real CS2 kill (killfeed, scoreboard, rank plugins)
   KILL_DELAY: 1.0,               // seconds between the Doom death and the CS2 kill in respawn modes

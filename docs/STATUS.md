@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 14:50 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 19:05 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -396,6 +396,33 @@ Bot-only balance after fixes, 8 bots on the 16 large levels: ~13 victory / 1-2 o
 lose more often (5 of 6 overrun) - small groups may need lives 4 or a smaller budget; judge after a human game.
 Known/accepted: Doom's chase is greedy, so some jitter remains (relocation covers it); mock "blank spectator lines" at
 t=25/45 are the second the !spec was typed (pre-existing, also in the previous script); monster kills still not CS2 kills.
+
+## Update 18 Oct 19:05 - Boss Battle: twin tripods, summoner swarm, boss music, monster score; flame bringer frames (Zach 18:33)
+Delivered + sha1-verified (content): maps/scripts/freedm.js, maps/mg_hellmatch.vmap (+7 entities), soundevents_addon.vsndevts
+(+4 music events), sounds/fdm/music/e1m8..e4m8.mp3, models + materials for vile_0..2 (15 files), MUSIC_CREDITS.txt,
+README/TESTING (19c); (game) MUSIC_CREDITS.txt, README_HELLMATCH.md. MAP REBUILD NEEDED (new entities + sounds + models).
+NOT YET RUN IN CS2. Note: files written through /mnt/user-data/outputs get a C2PA provenance chunk (mp3: ID3 GEOB,
+png: caBX ancillary chunk, ~5.8 KB each); audio/image data unchanged, decoders ignore it (earlier music had it too).
+- Bosses (36_monsters.js planBoss): cyber 4, twin 3 (6+ players, cyber fits; 2 x 1500*m health, smaller escort),
+  spider 3 (6+, fits), swarm 3 (2 + ceil(n/5) summoners at 400*(1+m), escort 1 + n/4; flares capped at 20 by Doom's
+  rule), lords 2 (4 if no cyber). The kind the last Boss Battle arena got has a quarter of its weight next time
+  (lastBossKind). Bot audit, 8 bots, 16 large levels, forced kind: swarm 14/15 won; twin at 2600 health 3/10, at 2000
+  5/14, at 1500 + smaller escort 9/15 (kept: the hard one); random mix 11/16 vs 13/16 this morning (noise-level).
+  test/audit_monsters.cjs: AUDIT_BOSS=<kind>, boss name column, results by boss.
+- Music: tools/music.py pool 'boss' = Freedoom Phase 1 boss levels E1M8 "On the Next Day", E2M8 "Treble Dissension",
+  E3M8 "The Zenith", E4M8 "Vs. The Assault Quindecapod" (712 s together), same OPL3 render + loudnorm; titles() now
+  reads Phase 1/2 too. Boss Battle rounds play the theme then the boss pool (startDoomRound), only when the map has
+  boss tracks. music.json on the PC side = the deployed list + the 4 boss entries appended (existing entities keep
+  their positions); fdm_mus_e1m8..e4m8 added by vmap_env (verified: only those 4 + fdm_cache_vile_0..2 added, nothing
+  removed). The dm renders here differ in bytes from the PC's (encoder version), so only the new files were sent.
+- Score: monsterKill event -> monsterScore: AddScore(MONSTER_SCORE 2 / MONSTER_SCORE_BOSS 10) in Boss Battle
+  (MONSTER_SCORE_DEATHMATCH false), not in warmup; MONSTER_KILL_COMMAND (off) runs a server command per kill with
+  {slot} {boss} {monster} for a plugin that wants the Kills column / ranks (no .NET here to build one).
+- Flame bringer: sprite_models.json now 505 (VILE_0..2, its attack frames past Z) - those frames drew nothing before.
+- Steam: docs/WORKSHOP_CHANGELOG.md has "Update - 18 Oct (evening)" covering everything since the 10:31 upload;
+  docs/WORKSHOP_DESCRIPTION.txt updated (vote keys/commands, bosses, boss music credits, score, server load).
+Checks: tsc; mock bossonly 64 players 15 min (boss music only in boss rounds, scores from monster kills, no errors);
+churn 64 players (no monster score in deathmatch, ballot on every screen, screens match); vote/novote traces as before.
 
 ## Update 18 Oct 14:50 - next-mode vote at the end of every round (Zach 13:44), then more optimising
 Delivered + sha1-verified: maps/scripts/freedm.js (b760c68e), README_HELLMATCH.md, TESTING_HELLMATCH.md (item 19b).

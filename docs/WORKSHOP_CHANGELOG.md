@@ -1,5 +1,15 @@
 # Workshop change notes (as posted on Steam)
 
+## Update - 18 Oct (evening): vote for the next mode, new bosses, Boss Battle music
+- Vote for the next mode: when a round ends, everyone gets a 10-second ballot. Mouse 1 free for all, Mouse 2 team deathmatch, E team elimination, R last man standing, F Boss Battle (or type !ffa, !tdm, !elim, !lms, !boss). Top fraggers' votes count more (up to 3x). A mode played two rounds running isn't offered a third time, and if the winner can't be played (not enough players, no one on one side) the next choice is used.
+- New Boss Battle bosses: twin assault tripods and a summoner swarm, alongside the assault tripod, the large technospider and the pain lords. The same kind of boss is less likely twice in a row.
+- Boss Battle has its own music: the boss-level tracks from Freedoom's episodes.
+- Monster kills in Boss Battle now score points on the CS2 scoreboard (10 for a boss).
+- Lighter on servers again: about a third less script time per tick, and the worst moments (boss waves arriving) take half as long.
+- Fixed: the flame bringer vanished for a moment when it attacked.
+- Fixed: a monster's shot that escaped a level could fly off the edge of the map.
+- Fixed: on a full server some players' screens stayed blank for a while after a new round started.
+
 ## Update - 18 Oct: Boss Battle, monsters, new music
 - New mode: Boss Battle (co-op). Everyone in the arena fights 4 waves of monsters and then a boss, with 3 lives each. The frag box counts your kills; the top right shows the wave and what's left.
 - Monsters in deathmatch: an arena now has a 15% chance of creatures loose in the level. Killing one is no frag and dying to one costs none.

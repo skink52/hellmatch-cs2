@@ -21,6 +21,9 @@ function audit(L) {
   if (d) {
     const os = d.spawn.bind(d);
     d.spawn = (t, o) => { const mo = os(t, o); if (!mo) r.spawnFail++; else r.spawned++; return mo; };
+    // AUDIT_BOSS=cyber|twin|spider|swarm|lords: that boss whenever it can be placed
+    const op = d.planBoss.bind(d);
+    if (process.env.AUDIT_BOSS) d.planBoss = (n) => { let p; for (let i = 0; i < 40; i++) { p = op(n); if (p.kind === process.env.AUDIT_BOSS) break; } return p; };
     const ou = d.unstick.bind(d);
     d.unstick = () => { const before = r.spawned; ou(); r.unstick += r.spawned - before; };
   }
@@ -87,7 +90,7 @@ function audit(L) {
       if (line1.length > 32) r.hudLong.add(line1); if (line2.length > 32) r.hudLong.add(line2);
     }
   }
-  r.secs = Math.round(tics / 35); r.result = a.result ? a.result.text : 'running'; r.wave = d ? d.wave : '-';
+  r.secs = Math.round(tics / 35); r.result = a.result ? a.result.text : 'running'; r.wave = d ? d.wave : '-'; r.boss = d && d.bossPlan ? d.bossPlan.name : '-';
   r.hudLong = [...r.hudLong];
   return r;
 }
@@ -96,8 +99,12 @@ const rows = [];
 for (const L of maps) {
   const r = audit(L);
   rows.push(r);
-  console.log(`${r.map} ${String(r.area).padStart(5)}M ${r.mode} ${String(r.secs).padStart(3)}s wave ${r.wave} ${r.result.padEnd(34)} spawned ${String(r.spawned).padStart(3)} fail ${r.spawnFail} unstick ${r.unstick} maxAlive ${r.maxAlive} | out ${r.outside} wall ${r.inWall} ledge ${r.ledge} float ${r.floating} below ${r.offFloor} stuck ${r.stuckSec}s idle ${r.idleSec}s botStuck ${r.botStuckSec}s | mk ${r.mkills} pd ${r.pdeaths} | tic max ${r.maxTicMs.toFixed(1)}ms slow ${r.slowTics}${r.hudLong.length ? ' HUDLONG ' + r.hudLong.join('|') : ''}`);
+  console.log(`${r.map} ${String(r.area).padStart(5)}M ${r.mode} ${String(r.secs).padStart(3)}s wave ${r.wave} ${r.boss.padEnd(18)} ${r.result.padEnd(34)} spawned ${String(r.spawned).padStart(3)} fail ${r.spawnFail} unstick ${r.unstick} maxAlive ${r.maxAlive} | out ${r.outside} wall ${r.inWall} ledge ${r.ledge} float ${r.floating} below ${r.offFloor} stuck ${r.stuckSec}s idle ${r.idleSec}s botStuck ${r.botStuckSec}s | mk ${r.mkills} pd ${r.pdeaths} | tic max ${r.maxTicMs.toFixed(1)}ms slow ${r.slowTics}${r.hudLong.length ? ' HUDLONG ' + r.hudLong.join('|') : ''}`);
 }
 const sum = (k) => rows.reduce((t, r) => t + r[k], 0);
 console.log(`TOTAL maps ${rows.length}: spawnFail ${sum('spawnFail')} unstick ${sum('unstick')} outside ${sum('outside')} inWall ${sum('inWall')} ledge ${sum('ledge')} floating ${sum('floating')} below ${sum('offFloor')} stuck ${sum('stuckSec')}s idle ${sum('idleSec')}s botStuck ${sum('botStuckSec')}s slowTics ${sum('slowTics')} maxTic ${Math.max(...rows.map((r) => r.maxTicMs)).toFixed(1)}ms`);
-if (MODE === 'boss') console.log('results:', rows.map((r) => r.result.split(' ')[0]).reduce((o, k) => (o[k] = (o[k] || 0) + 1, o), {}));
+if (MODE === 'boss') {
+  console.log('results:', rows.map((r) => r.result.split(' ')[0]).reduce((o, k) => (o[k] = (o[k] || 0) + 1, o), {}));
+  const by = {}; for (const r of rows) { const k = r.boss; by[k] = by[k] || {}; const res = r.result.split(' ')[0]; by[k][res] = (by[k][res] || 0) + 1; }
+  console.log('by boss:', JSON.stringify(by));
+}
