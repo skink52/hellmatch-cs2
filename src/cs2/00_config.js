@@ -66,6 +66,7 @@ const CONFIG = {
   EYE_FORWARD: 15,               // Doom units the camera sits ahead of the player centre (keeps the eye outside the marine model)
   OWN_BODY: "move",            // own Doom marine: "move" (smoothed), "snap" (teleport each tick), "off" (invisible to everyone)
   HIDE_OWN_BODY: true,           // make the parked CS2 pawn invisible (its body otherwise shows under the Doom view)
+  CLIENT_CVARS: ["cl_hud_playercount_showcount 1"],   // sent to each player on arrival: player count instead of the avatars at the top (if CS2 lets a server set it)
   HIDE_CS_HUD: false,            // cl_draw_only_deathnotices can't be set from a server script (CS2 refuses it); kept for servers that allow it
 
   // ---- input

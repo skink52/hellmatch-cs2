@@ -397,6 +397,15 @@ lose more often (5 of 6 overrun) - small groups may need lives 4 or a smaller bu
 Known/accepted: Doom's chase is greedy, so some jitter remains (relocation covers it); mock "blank spectator lines" at
 t=25/45 are the second the !spec was typed (pre-existing, also in the previous script); monster kills still not CS2 kills.
 
+## Update 19 Oct 12:50 - !text (Doom-font text size), top-bar avatars (Zach 12:40)
+NOT DELIVERED YET (PC not linked when built): maps/scripts/freedm.js, panorama/styles/custom_game/freedm.css (+28 rules,
+nothing else changed), README/TESTING (19d). The CSS needs a compile (map build). NOT YET RUN IN CS2.
+- !text [normal|large|huge|small|tiny] per player (pe.textSize): class on fdm_screen; each line scales from its anchored
+  edge, the second line of each pair is shifted by 9*(s-1) so pairs don't overlap; the message wrap width is 316/s.
+- Avatars at the top of the CS2 HUD: a map can't style the native HUD; CONFIG.CLIENT_CVARS (default
+  "cl_hud_playercount_showcount 1") is sent with ClientCommand once per arriving human. Unknown whether CS2 lets a
+  server set it (cl_draw_only_deathnotices was refused). If it works it persists in the player's own config.
+
 ## Update 18 Oct 19:05 - Boss Battle: twin tripods, summoner swarm, boss music, monster score; flame bringer frames (Zach 18:33)
 Delivered + sha1-verified (content): maps/scripts/freedm.js, maps/mg_hellmatch.vmap (+7 entities), soundevents_addon.vsndevts
 (+4 music events), sounds/fdm/music/e1m8..e4m8.mp3, models + materials for vile_0..2 (15 files), MUSIC_CREDITS.txt,

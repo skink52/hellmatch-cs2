@@ -196,6 +196,9 @@ function updateFace(p) {
   return f.index;
 }
 
+// !text sizes (tools/hud.py TEXT_SIZES; "normal" has no class)
+const TEXT_SCALE = { tiny: 0.6, small: 0.8, normal: 1, large: 1.25, huge: 1.5 };
+
 // ---------------------------------------------------------------- per player HUD refresh
 const weaponClassMemo = [];
 function weaponClass(psp) {
@@ -225,6 +228,7 @@ function hudPlayer(slot, p, arena, info) {
   hudSwap(slot, "fdm_root", "On");
   hudOptions(slot);
   hudSwap(slot, "fdm_sbarbox", info && info.sbar && info.sbar !== "centre" ? info.sbar : null);
+  hudSwap(slot, "fdm_screen", info && info.text && info.text !== "normal" ? info.text : null);
   // weapon sprite + flash
   const wp = p.psprites[0], fp = p.psprites[1];
   const alive = p.playerstate === "live";
@@ -261,7 +265,7 @@ function hudPlayer(slot, p, arena, info) {
   hudSwap(slot, "fdm_team", arena && arena.teamsActive && p.team >= 0 ? (p.team === 0 ? "teamred" : "teamblue") : null);
   // message line (4 seconds, like Doom); !help puts the controls there instead
   const msg = info && info.msg ? info.msg : p.message && arena && arena.leveltime - p.messageTime < 4 * TICRATE ? p.message : "";
-  const [m1, m2] = hudWrap(msg, 316, 56);
+  const [m1, m2] = hudWrap(msg, Math.floor(316 / TEXT_SCALE[(info && info.text) || "normal"]), 56);
   hudText(slot, "fdm_msg", 56, m1);
   hudText(slot, "fdm_msgb", 56, m2);
   if (info) {
@@ -280,6 +284,7 @@ function hudOff(slot) {
 // lobby: only the text lines (top right, centre, bottom)
 function hudLobby(slot, info) {
   hudSwap(slot, "fdm_root", "Lobby");
+  hudSwap(slot, "fdm_screen", info.text && info.text !== "normal" ? info.text : null);
   hudOptions(slot);
   hudText(slot, "fdm_inf1_", 32, info.line1 || "");
   hudText(slot, "fdm_inf2_", 32, info.line2 || "");

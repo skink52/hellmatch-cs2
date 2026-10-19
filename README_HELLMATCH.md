@@ -79,7 +79,7 @@ Everything else is plain props:
 
 During the end-of-round vote: Mouse 1 / Mouse 2 / E / R / F vote for free for all / team deathmatch / team elimination / last man standing / Boss Battle.
 
-Chat (`!` or `/`): `!ffa` `!tdm` `!elim` `!lms` `!boss` (vote for the next mode while the ballot is up), `!help` (controls, shown on your own screen; `!controls` and `!hm` work too), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small), `!hud scores` (hide the game HUD while the scoreboard is open; off by default).
+Chat (`!` or `/`): `!ffa` `!tdm` `!elim` `!lms` `!boss` (vote for the next mode while the ballot is up), `!help` (controls, shown on your own screen; `!controls` and `!hm` work too), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small), `!text` (size of the red Doom-font text lines: normal, large, huge, small, tiny; `!text large` etc picks one), `!hud scores` (hide the game HUD while the scoreboard is open; off by default).
 
 Frags during CS2 warmup are not sent to the scoreboard.
 

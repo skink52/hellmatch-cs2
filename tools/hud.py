@@ -206,6 +206,19 @@ rule('.InfLine1', horizontal_align='right', margin_right=px(2, SX), margin_top=p
 rule('.InfLine2', horizontal_align='right', margin_right=px(2, SX), margin_top=px(19, SY))
 rule('.SpecLine', horizontal_align='center', margin_top=px(158, SY))
 rule('.SpecLine.SpecLine2', margin_top=px(149, SY))  # the line above: who a spectator watches, or the !help keys
+# !text: per-player size of the Doom font lines (class on the screen panel). Each line scales from the edge it is
+# anchored to; the second line of a pair moves by the size change so the two never overlap
+TEXT_SIZES = {'tiny': 0.6, 'small': 0.8, 'large': 1.25, 'huge': 1.5}
+for cls, s in TEXT_SIZES.items():
+    sc = 'scale3d(%.2f, %.2f, 1)' % (s, s)
+    shift = px(9 * (s - 1), SY)
+    rule('.Screen.%s .MsgLine' % cls, transform_origin='0% 0%', transform=sc)
+    rule('.Screen.%s .MsgLine.MsgLine2' % cls, transform='translatey(%s) %s' % (shift, sc))
+    rule('.Screen.%s .InfLine1' % cls, transform_origin='100% 0%', transform=sc)
+    rule('.Screen.%s .InfLine2' % cls, transform_origin='100% 0%', transform='translatey(%s) %s' % (shift, sc))
+    rule('.Screen.%s .CtrLine' % cls, transform_origin='50% 0%', transform=sc)
+    rule('.Screen.%s .SpecLine' % cls, transform_origin='50% 100%', transform=sc)
+    rule('.Screen.%s .SpecLine.SpecLine2' % cls, transform='translatey(-%s) %s' % (shift, sc) if s >= 1 else 'translatey(%s) %s' % (px(9 * (1 - s), SY), sc))
 rule('.Team', width=px(320, SX), height=px(2, SY))
 rule('.Team.teamred', background_color='#e61e1ecc')
 rule('.Team.teamblue', background_color='#3c5affcc')

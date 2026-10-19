@@ -66,9 +66,16 @@ function scanPeople(force) {
     seen.add(slot);
     const bot = c.IsBot();
     if (bot && !CONFIG.CS2_BOTS_PLAY) continue;
+    if (!bot && !rm.person(slot)) clientSettings(slot);
     rm.addPerson(slot, c.GetPlayerName(), c.GetTeamNumber(), bot);
   }
   for (const slot of Array.from(rm.people.keys())) if (!seen.has(slot)) dropPerson(slot);
+}
+
+// client settings asked of each player once when they arrive (CS2 only accepts the ones a server may set; others
+// are ignored with a console note on the player's side)
+function clientSettings(slot) {
+  for (const cmd of CONFIG.CLIENT_CVARS || []) guard("clientcvar", () => Instance.ClientCommand(slot, cmd));
 }
 
 function dropPerson(slot) {
@@ -390,12 +397,12 @@ function infoFor(pe, now) {
     line2 = "MUSIC: MAIN MENU MUSIC SLIDER";
     if (spectating) spec2 = "MOUSE1/2 SWITCH PLAYER" + (rm.arenas.length > 1 ? "  E NEXT ARENA" : "");
   }
-  return { line1, line2, center, spec, spec2, msg, sbar: pe.hudPos };
+  return { line1, line2, center, spec, spec2, msg, sbar: pe.hudPos, text: pe.textSize };
 }
 
 let lobbyNext = 0, lobbyCycle = 0, lobbyWaiting = 0;   // lobbyCycle: which arena the lobby status shows (changes every 3 s)
 function lobbyInfo(pe, now) {
-  const info = { line1: "", line2: "", center: "", spec: "" };
+  const info = { line1: "", line2: "", center: "", spec: "", text: pe.textSize };
   if (phase === "running") {
     const rem = guard("remaining", () => Instance.GetRoundRemainingTime());
     const left = rem === undefined ? 0 : Math.max(0, Math.ceil(rem - CONFIG.ROUND_SLACK));
@@ -694,6 +701,15 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
     if (pe) {
       pe.hudPos = order.includes(want) ? want : order[(order.indexOf(pe.hudPos || "centre") + 1) % order.length];
       if (pe.player) { pe.player.message = "STATUS BAR: " + ({ centre: "NORMAL", classic: "CLASSIC", small: "SMALL" })[pe.hudPos] + "  (!HUD TO CHANGE)"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
+    }
+  } else if (t === "!text" || t.startsWith("!text ")) {
+    // size of the Doom font text lines for this player: normal -> large -> huge -> small -> tiny -> normal
+    const order = ["normal", "large", "huge", "small", "tiny"];
+    const alias = { big: "large", bigger: "huge", default: "normal", medium: "normal", little: "small" };
+    const want = alias[t.slice(6).trim()] || t.slice(6).trim();
+    if (pe) {
+      pe.textSize = order.includes(want) ? want : order[(order.indexOf(pe.textSize || "normal") + 1) % order.length];
+      if (pe.player) { pe.player.message = "TEXT SIZE: " + pe.textSize.toUpperCase() + "  (!TEXT TO CHANGE)"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
     }
   } else if (["!help", "!controls", "!hm", "!doom", "!fdm"].includes(t)) {   // !doom / !fdm: old names, still work
     // shown only on the HUD of whoever typed it (CS2 scripts can't send a private chat line); see infoFor / lobbyInfo
