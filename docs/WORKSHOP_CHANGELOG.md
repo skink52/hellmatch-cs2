@@ -1,5 +1,12 @@
 # Workshop change notes (as posted on Steam)
 
+## Update - 19 Oct: monster podium, moving water, text size
+- Boss Battle podium: at the end of the round each arena's top 3 monster killers get real CS2 kills, shared 50% / 30% / 20%.
+- The Hellmatch theme now plays only at the start of the map's first round and its first Boss Battle round.
+- Water, lava, slime, blood and falls animate again, and the scrolling walls on MAP13, MAP20 and MAP32 move.
+- New option: !text sets the size of the red Doom-font text, like !hud.
+- The top bar shows a player count instead of profile pictures.
+
 ## Update - 18 Oct (evening): vote for the next mode, new bosses, Boss Battle music
 - Vote for the next mode: when a round ends, everyone gets a 10-second ballot. Mouse 1 free for all, Mouse 2 team deathmatch, E team elimination, R last man standing, F Boss Battle (or type !ffa, !tdm, !elim, !lms, !boss). Top fraggers' votes count more (up to 3x). A mode played two rounds running isn't offered a third time, and if the winner can't be played (not enough players, no one on one side) the next choice is used.
 - New Boss Battle bosses: twin assault tripods and a summoner swarm, alongside the assault tripod, the large technospider and the pain lords. The same kind of boss is less likely twice in a row.
