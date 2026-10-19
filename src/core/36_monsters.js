@@ -40,7 +40,7 @@ class MonsterDirector {
   constructor(arena, mode, opts) {
     this.a = arena;
     this.mode = mode;                 // 'boss' | 'roam'
-    this.cfg = Object.assign({ waves: 5, lives: 3, maxAlive: 36, roamCount: 0, spawnGap: 1.2 * TICRATE, waveGap: 6 * TICRATE }, opts || {});
+    this.cfg = Object.assign({ waves: 5, lives: 3, maxAlive: 36, difficulty: 1, roamCount: 0, spawnGap: 1.2 * TICRATE, waveGap: 6 * TICRATE }, opts || {});
     this.wave = 0;                    // boss: 1..waves (waves = the boss wave)
     this.queue = [];                  // monster type keys still to appear in this wave
     this.spawned = 0; this.killed = 0; this.bossKilled = 0; this.bossCount = 0;
@@ -64,7 +64,7 @@ class MonsterDirector {
   // the monsters of a wave, picked from the tiers open so far; later waves lean towards the big ones
   planWave(w, n) {
     const base = 4 + 2.5 * Math.min(16, n);
-    const budget = base * (0.7 + 0.4 * w);
+    const budget = base * (0.7 + 0.4 * w) * (this.mode === 'boss' ? this.cfg.difficulty : 1);
     const maxTier = Math.min(4, w - 1 + (w >= 3 ? 1 : 0));
     const list = [];
     let spent = 0, guard = 0;
@@ -90,7 +90,8 @@ class MonsterDirector {
   //   lords   a pack of pain lords
   // The kind the last Boss Battle arena got is much less likely next time, so rounds don't repeat.
   planBoss(n) {
-    const m = Math.max(0.5, Math.min(2.2, 0.35 + 0.1 * Math.min(16, n)));   // health scale by player count
+    const d = this.cfg.difficulty;
+    const m = Math.max(0.5, Math.min(2.2, 0.35 + 0.1 * Math.min(16, n))) * d;   // health scale by player count and difficulty
     const known = new Map();   // the same question twice gives the same answer (nothing moves in between)
     const fits = (key) => { if (!known.has(key)) known.set(key, !!this.findSpot(MOBJINFO[MT[key]], 0, true)); return known.get(key); };
     const cyber = fits('CYBERDEMON');
@@ -114,7 +115,7 @@ class MonsterDirector {
       name = 'SUMMONER SWARM';
     } else { const k = 1 + Math.ceil(n / 4); for (let i = 0; i < k; i++) bosses.push({ type: 'BARON', health: Math.round(1000 * (1 + m / 2)) }); name = 'PAIN LORDS'; }
     // the swarm's own flares are its escort, and two tripods are trouble enough: those bring fewer others
-    const escort = this.planWave(2, n).slice(0, pick === 'swarm' || pick === 'twin' ? 1 + Math.floor(n / 4) : 2 + Math.floor(n / 3));
+    const escort = this.planWave(2, n).slice(0, Math.round(d * (pick === 'swarm' || pick === 'twin' ? 1 + Math.floor(n / 4) : 2 + Math.floor(n / 3))));
     return { bosses, escort, name, kind: pick };
   }
 
@@ -273,7 +274,7 @@ class MonsterDirector {
       const mo = this.spawn(item.type, { health: item.health, boss: item.boss, minDist: item.boss ? 700 : 500 });
       if (mo) { this.queue.shift(); this.spawnFails = 0; }
       else if (++this.spawnFails > 3) { this.queue.shift(); this.spawnFails = 0; }   // nowhere to put it: skip it
-      this.nextSpawn = a.leveltime + (alive < Math.min(cap, 4 + n) ? 6 : this.cfg.spawnGap);
+      this.nextSpawn = a.leveltime + (alive < Math.min(cap, 4 + n) ? 6 : Math.round(this.cfg.spawnGap / Math.max(0.5, this.cfg.difficulty)));
       return;
     }
     if ((a.leveltime % (5 * TICRATE)) === 0) this.unstick();

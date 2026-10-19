@@ -1,6 +1,7 @@
 # Workshop change notes (as posted on Steam)
 
 ## Update - 19 Oct: monster podium, moving water, text size
+- Boss Battle is harder: bigger waves that arrive faster, tougher bosses and a larger escort.
 - Boss Battle podium: at the end of the round each arena's top 3 monster killers get real CS2 kills, shared 50% / 30% / 20%.
 - The Hellmatch theme now plays only at the start of the map's first round and its first Boss Battle round.
 - Water, lava, slime, blood and falls animate again, and the scrolling walls on MAP13, MAP20 and MAP32 move.

@@ -16,7 +16,8 @@ const CONFIG = {
   LOADOUT_CHANCE: 0.12,          // chance, per arena, of a "weapon start": everyone there (re)spawns with one of START_WEAPONS
   START_WEAPONS: { shotgun: 3, ssg: 3, chaingun: 3, rocket: 2, plasma: 2, chainsaw: 2, bfg: 1 },   // weapon: how likely
   MONSTER_CHANCE: 0.15,          // chance, per arena, that a deathmatch round has monsters loose in the level (no frags for them)
-  MONSTERS: { waves: 5, lives: 3, maxAlive: 36, roamMax: 8 },   // Boss Battle: waves before the boss (the 5th is the boss), lives each; alive cap per arena
+  MONSTERS: { waves: 5, lives: 3, maxAlive: 36, roamMax: 8, difficulty: 1.35 },   // Boss Battle: waves before the boss (the 5th is the boss), lives each; alive cap per arena;
+                                 // difficulty scales wave size, spawn pace, boss health and escort (1 = the 18 Oct balance)
   BOSS_SECONDS: 480,             // Boss Battle arenas end after this (the monsters win)
   ITEMS_RESPAWN: true,           // Doom "deathmatch 2.0": items respawn, weapons are picked up
   FRIENDLY_FIRE: false,

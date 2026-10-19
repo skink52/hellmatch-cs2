@@ -247,7 +247,7 @@ class RoundManager {
     const mc = this.cfg.monsters || {};
     if (arena.coop) {
       arena.monsterFrags = true;
-      arena.director = new MonsterDirector(arena, 'boss', { waves: mc.waves || 5, maxAlive: mc.maxAlive || 36 });
+      arena.director = new MonsterDirector(arena, 'boss', { waves: mc.waves || 5, maxAlive: mc.maxAlive || 36, difficulty: mc.difficulty || 1 });
       arena.lives = mc.lives !== undefined ? mc.lives : 3;
     } else if (item.monsters) {
       // a few monsters loose in the level, sized to it

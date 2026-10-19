@@ -411,6 +411,9 @@ t=25/45 are the second the !spec was typed (pre-existing, also in the previous s
 - Map: vmap_env on the PC's vmap (unchanged since 18 Oct 19:05 write): +4 prop_dynamic, nothing removed.
 - Files: 320 new (190 vmat, 124 png, 6 model files) + 42 changed (35 anim vmdl, static bucket smd/vmdl on m13/m20/m32).
 - Joins re-checked (mock churn/hudcheck/resetfirst/hudwipe/spec): 0 left in lobby, screens match, ballot shown.
+- 17:30 Boss Battle harder (Zach): CONFIG.MONSTERS.difficulty 1.35 scales planWave budget, spawnGap (/d), boss health (m*d),
+  escort count (*d). Mock (4h+12b, 8 seeds, bots only): d=1 6 win/6 overrun/4 time-up -> d=1.35 4/9/3. Think time
+  unchanged (alive cap 36 kept). Mock option diff=X.
 
 ## Update 19 Oct 12:50 - !text (Doom-font text size), top-bar avatars (Zach 12:40)
 Delivered 19 Oct 16:15 + verified: maps/scripts/freedm.js, panorama/styles/custom_game/freedm.css (+28 rules,
