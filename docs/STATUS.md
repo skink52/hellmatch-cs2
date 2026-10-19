@@ -397,6 +397,21 @@ lose more often (5 of 6 overrun) - small groups may need lives 4 or a smaller bu
 Known/accepted: Doom's chase is greedy, so some jitter remains (relocation covers it); mock "blank spectator lines" at
 t=25/45 are the second the !spec was typed (pre-existing, also in the previous script); monster kills still not CS2 kills.
 
+## Update 19 Oct 17:xx - planned list done: theme rule, monster podium, animated/scrolling surfaces, joins re-checked
+- Theme (55_music.js): MUSIC_OPENER "first+boss" (default): map's first round + first Boss Battle round (once if same).
+- Podium (60_main.js monsterPodium, in endDoomRound): per coop arena, rank by p.frags (monster frags); top 3 with > 0;
+  everyone else in the arena csKill'd credited by splitShares(losers, [50,30,20]) (Space Racer's rule); chat line.
+- Animated surfaces (water etc.) never animated: convert.py's material groups remapped FROM the SMD material name;
+  ModelDoc groups remap from the default group's material path (as the sprite colour skins do, which work). Fixed.
+- Scrolling walls (special 48): csgo_unlitgeneric's g_vTexCoordScrollSpeed did nothing in CS2. Now each scrolling
+  texture is its own anim prop (fdm_<lvl>_as_<tex>) with frames = the texture shifted scroll_step(w) = max(2, w/32)
+  pixels (<= 32 frames), stepped by the script every `step` tics (level data an = [name, frames, tics]). Only on static
+  buckets (scroll lines on lift/door sectors keep the old scroll material). MAP13 sp_face1, MAP20 skspine2, MAP32
+  compblue + crackle2.
+- Map: vmap_env on the PC's vmap (unchanged since 18 Oct 19:05 write): +4 prop_dynamic, nothing removed.
+- Files: 320 new (190 vmat, 124 png, 6 model files) + 42 changed (35 anim vmdl, static bucket smd/vmdl on m13/m20/m32).
+- Joins re-checked (mock churn/hudcheck/resetfirst/hudwipe/spec): 0 left in lobby, screens match, ballot shown.
+
 ## Update 19 Oct 12:50 - !text (Doom-font text size), top-bar avatars (Zach 12:40)
 Delivered 19 Oct 16:15 + verified: maps/scripts/freedm.js, panorama/styles/custom_game/freedm.css (+28 rules,
 nothing else changed), README/TESTING (19d). The CSS needs a compile (map build). NOT YET RUN IN CS2.
@@ -533,10 +548,7 @@ Noticed, not changed:
 ## Ideas / not done
 - Per-player music on/off (csgo_music plays to everyone; players use snd_musicvolume).
 - Intermission music between rounds (d_fdmint).
-- NEXT BUG-FIX UPDATE (Zach 18 Oct 19:25, not before): theme only at round start of the map's first round and of its
-  first Boss Battle round (once if the same round; CONFIG.MUSIC_OPENER today is every/first/off); monster kills
-  podium like Space Racer (tally monster frags per round, 1st/2nd/3rd get real CS2 kill credit at round end);
-  scrolling walls (MAP13, MAP20) and water animation don't move (look at with a real fix); re-check mid-round joins.
+- (Done 19 Oct: theme rule, monster podium, animated/scrolling surfaces, joins re-checked.)
 - Zach's C answers (18 Oct 19:25) are recorded in TESTING_HELLMATCH.md section C (→ lines). Dead bots turning green
   is accepted (signals a landed kill). Joining CS2's real spectator team is a bit buggy - accepted.
 

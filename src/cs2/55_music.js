@@ -3,7 +3,7 @@
 // A round opens with the Hellmatch theme (pool "opener", see CONFIG.MUSIC_OPENER), then plays its pool in a shuffled
 // order, one track after another, and stops when the round ends.
 
-const music = { pool: "", list: [], cur: null, last: "", endsAt: 0, openedOnce: false };
+const music = { pool: "", list: [], cur: null, last: "", endsAt: 0, openedOnce: false, bossOpened: false };
 
 function musicEnt(id) {
   const e = live(Instance.FindEntityByName(CONFIG.MUSIC_PREFIX + id));
@@ -17,8 +17,11 @@ function musicStart(pool) {
   music.pool = pool; music.list = [];
   const opener = MUSIC_TRACKS.find((t) => t.pool === "opener");
   const mode = CONFIG.MUSIC_OPENER;
-  if (opener && (mode === "every" || (mode === "first" && !music.openedOnce))) {
+  const boss = pool === "boss";
+  // "first+boss": the map's first round, and its first Boss Battle round (once if they are the same round)
+  if (opener && (mode === "every" || (mode === "first" && !music.openedOnce) || (mode === "first+boss" && (!music.openedOnce || (boss && !music.bossOpened))))) {
     music.openedOnce = true;
+    if (boss) music.bossOpened = true;
     musicPlay(opener);
     return;
   }

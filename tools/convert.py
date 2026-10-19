@@ -269,6 +269,17 @@ ANIM_GROUP = """					{
 """
 
 
+def remap_pairs(pairs):
+    # material group remaps: from a full material path (the default group's) to another
+    return "\n".join('\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tfrom = "%s"\n\t\t\t\t\t\t\t\tto = "%s"\n\t\t\t\t\t\t\t},' % (k, v)
+                     for k, v in sorted(pairs.items()))
+
+
+def scroll_step(w):
+    # pixels (= tics, at Doom's 1 pixel per tic) between a scrolling wall's frames: at most 32 frames a texture
+    return max(2, w // 32)
+
+
 def remap_block(mats):
     return "\n".join('\t\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\tfrom = "%s.vmat"\n\t\t\t\t\t\t\t\tto = "%s"\n\t\t\t\t\t\t\t},' % (k, v)
                      for k, v in sorted(mats.items()))
@@ -289,11 +300,13 @@ class Materials:
             self.sizes[k] = (img.shape[1], img.shape[0]) if img is not None else (64, 64)
         return self.sizes[k]
 
-    def write_png(self, kind, name):
-        k = (kind, name)
+    def write_png(self, kind, name, shift=0):
+        k = (kind, name, shift)
         if k in self.tex_done: return
         self.tex_done.add(k)
         img = assets.texture(name) if kind == 'w' else assets.flat(name)
+        if shift: img = np.roll(img, -shift, axis=1)   # a scrolling wall's frame: the texture moved `shift` pixels left
+        fname = name.lower() + ('_x%d' % shift if shift else '')
         d = os.path.join(self.out, ADDON_MAT, 'tex' if kind == 'w' else 'flat')
         os.makedirs(d, exist_ok=True)
         big = np.repeat(np.repeat(img, UPS, 0), UPS, 1)
@@ -306,25 +319,26 @@ class Materials:
             if (ph, pw) != big.shape[:2]:
                 rgb = np.array(Image.fromarray(rgb).resize((pw, ph), Image.NEAREST))
                 big = np.array(Image.fromarray(big).resize((pw, ph), Image.NEAREST))
-            Image.fromarray(big[..., 3]).save(os.path.join(d, name.lower() + '_trans.png'))
-        Image.fromarray(rgb[..., :3]).save(os.path.join(d, name.lower() + '_color.png'))
+            Image.fromarray(big[..., 3]).save(os.path.join(d, fname + '_trans.png'))
+        Image.fromarray(rgb[..., :3]).save(os.path.join(d, fname + '_color.png'))
 
-    def get(self, kind, name, light, alpha=False, scroll=False):
+    def get(self, kind, name, light, alpha=False, scroll=False, shift=0):
         step = max(0, min(15, light))
-        key = '%s_%s_l%d%s%s' % (kind, name.lower(), step, 'a' if alpha else '', 's' if scroll else '')
+        key = '%s_%s_l%d%s%s%s' % (kind, name.lower(), step, 'a' if alpha else '', 's' if scroll else '', '_x%d' % shift if shift else '')
         key = key.replace('-', '_')
         if key not in self.mats:
-            self.write_png(kind, name)
+            self.write_png(kind, name, shift)
+            tname = name.lower() + ('_x%d' % shift if shift else '')
             sub = 'tex' if kind == 'w' else 'flat'
             path = '%s/m/%s.vmat' % (ADDON_MAT, key)
             b = brightness(step)
             w, h = self.texsize(kind, name)
             lines = ['// FreeDM generated material', 'Layer0', '{', '\tshader "csgo_unlitgeneric.vfx"']
-            has_trans = alpha and os.path.exists(os.path.join(self.out, ADDON_MAT, sub, name.lower() + '_trans.png'))
+            has_trans = alpha and os.path.exists(os.path.join(self.out, ADDON_MAT, sub, tname + '_trans.png'))
             lines.append('\tF_BLEND_MODE %d' % (2 if has_trans else 0))
-            lines.append('\tTextureColor "%s/%s/%s_color.png"' % (ADDON_MAT, sub, name.lower()))
+            lines.append('\tTextureColor "%s/%s/%s_color.png"' % (ADDON_MAT, sub, tname))
             if has_trans:
-                lines.append('\tTextureTranslucency "%s/%s/%s_trans.png"' % (ADDON_MAT, sub, name.lower()))
+                lines.append('\tTextureTranslucency "%s/%s/%s_trans.png"' % (ADDON_MAT, sub, tname))
                 lines.append('\tg_flAlphaTestReference "0.500"')
             lines.append('\tg_vColorTint "[%.4f %.4f %.4f 0.000000]"' % (b, b, b))
             lines.append('\tg_flModelTintAmount "1.000"')
@@ -450,6 +464,15 @@ class Level:
             if a: return self.anim_bucket('f', a[0])
         return self.static_bucket(x, y)
 
+    # a scrolling wall (Doom special 48): CS2's unlit shader doesn't scroll textures, so the wall is its own animated
+    # prop whose frames are the texture shifted SCROLL_STEP(w) pixels at a time (the script steps the skins)
+    def scroll_bucket(self, tex):
+        k = 'as_' + tex.lower().replace('-', '_')
+        if k not in self.buckets:
+            self.buckets[k] = Bucket(k, (self.center[0], self.center[1], 0))
+            self.buckets[k].anim = ('scroll', tex)
+        return self.buckets[k]
+
     def wall_bucket(self, x, y, tex):
         a = anim_of('w', tex)
         return self.anim_bucket('w', a[0]) if a else self.static_bucket(x, y)
@@ -515,6 +538,8 @@ class Level:
             if zt - zb < 0.01 or tex in ('-', ''): return
             if assets.texture(tex) is None: return
             w, h = self.mats.texsize('w', tex)
+            if scroll and bucket.name.startswith('s'):
+                bucket = self.scroll_bucket(tex); scroll = False   # frame 0 is the plain texture
             mat = self.mats.get('w', tex, lt, alpha, scroll)
             u1 = (xoff + inset) / w; u2 = (xoff + ln - inset) / w
             vb = 1 - (top_ref - zb + yoff) / h; vt = 1 - (top_ref - zt + yoff) / h
@@ -602,12 +627,17 @@ class Level:
             open(os.path.join(mdir, name + '.smd'), 'w', newline='\n').write(b.smd())
             used = {mat: self.mats.mats[mat] for mat, _, _ in b.tris}
             skins = ''
-            frames = 1
+            frames = 1; tics = ANIM_TICS
             if b.anim:
-                # one material group per animation frame: every mesh material swaps to the same texture state of that frame
+                # one material group per animation frame: every mesh material swaps to the same texture state of that
+                # frame. A group remaps the default group's material (as the sprite models' colour skins do)
                 kind, group = b.anim
-                frames_list = ANIM[(kind, group)][1]
-                frames = len(frames_list)
+                if kind == 'scroll':
+                    w, _ = self.mats.texsize('w', group)
+                    tics = scroll_step(w); frames = max(1, w // tics)
+                else:
+                    frames_list = ANIM[(kind, group)][1]
+                    frames = len(frames_list)
                 for fi in range(1, frames):
                     remaps = {}
                     for mat in used:
@@ -615,16 +645,18 @@ class Level:
                         texname, tail = rest.rsplit('_l', 1)
                         step = int(''.join(ch for ch in tail if ch.isdigit()))
                         alpha = 'a' in tail; scroll = 's' in tail
-                        remaps[mat] = self.mats.mats[self.mats.get(kind, frames_list[fi], step, alpha, scroll)]
-                    skins += ANIM_GROUP % (fi, remap_block(remaps))
+                        if kind == 'scroll': to = self.mats.get('w', group, step, alpha, False, shift=fi * tics)
+                        else: to = self.mats.get(kind, frames_list[fi], step, alpha, scroll)
+                        remaps[used[mat]] = self.mats.mats[to]
+                    skins += ANIM_GROUP % (fi, remap_pairs(remaps))
             vm = VMDL % dict(remaps=remap_block(used), skins=skins, name=name, smd='models/fdm/%s/%s.smd' % (self.tag, name))
             open(os.path.join(mdir, name + '.vmdl'), 'w', newline='\n').write(vm)
             ox, oy, oz = b.origin
             world = (offset[0] + ox - self.center[0], offset[1] + oy - self.center[1], offset[2] + oz * ZS)
             props.append(dict(model='models/fdm/%s/%s.vmdl' % (self.tag, name), origin=world,
                               mover=None if k.startswith('s') or k.startswith('a') else k, name='fdm_%s_%s' % (self.tag, k),
-                              tris=len(b.tris), anim=frames if b.anim else 0))
-        self.anim_props = [[q['name'], q['anim']] for q in props if q['anim']]
+                              tris=len(b.tris), anim=frames if b.anim else 0, tics=tics))
+        self.anim_props = [[q['name'], q['anim'], q['tics']] for q in props if q['anim']]
         return props
 
     def runtime(self, offset):

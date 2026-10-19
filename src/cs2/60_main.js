@@ -142,6 +142,7 @@ function endDoomRound() {
   // elimination kills go to CS2 now, in the order they happened
   if (CONFIG.REAL_KILLS && !Instance.IsWarmupPeriod()) for (const k of elimKills) csKill(k.victim, k.killer);
   elimKills.length = 0;
+  guard("podium", monsterPodium);
   const lines = rm.arenas.map((a) => `${a.mapTitle}: ${a.result ? a.result.text : "-"}`);
   sayAll("Round over - " + lines.join(" | "));
   cvars(["mp_ignore_round_win_conditions 0"]);
@@ -161,6 +162,35 @@ function endDoomRound() {
   } else {
     warnOnce("nomapparams", "no " + CONFIG.MAP_PARAMS + " entity: rounds end on the clock as draws");
     guard("endround", () => Instance.SetRoundRemainingTime(1));
+  }
+}
+
+// Boss Battle: monster frags decide a podium per arena. The top 3 (with at least one monster frag) get real CS2 kills:
+// everyone else in the arena dies credited to them, shared 50 / 30 / 20 (Space Racer's rule)
+function splitShares(total, shares) {
+  const sum = shares.reduce((a, b) => a + b, 0) || 1;
+  const raw = shares.map((s) => total * s / sum);
+  const out = raw.map((r) => Math.floor(r));
+  let left = total - out.reduce((a, b) => a + b, 0);
+  const order = raw.map((r, i) => [r - Math.floor(r), i]).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; left > 0 && k < order.length; k++, left--) out[order[k][1]]++;
+  while (left > 0) { out[0]++; left--; }
+  return out;
+}
+
+function monsterPodium() {
+  if (!CONFIG.MONSTER_PODIUM || !CONFIG.REAL_KILLS || realKillsBroken || Instance.IsWarmupPeriod()) return;
+  for (const a of rm.arenas) {
+    if (!a.coop) continue;
+    const ranked = Array.from(a.players.values()).filter((p) => p.person && rm.person(p.person.slot) === p.person).sort((x, y) => y.frags - x.frags);
+    const podium = ranked.slice(0, 3).filter((p) => p.frags > 0);
+    if (!podium.length) continue;
+    const losers = ranked.filter((p) => !podium.includes(p));
+    const counts = splitShares(losers.length, CONFIG.MONSTER_PODIUM_SHARES.slice(0, podium.length));
+    let k = 0, done = 0;
+    counts.forEach((n, i) => { for (let j = 0; j < n && k < losers.length; j++, k++) if (csKill(losers[k].person.slot, podium[i].person.slot)) done++; });
+    log(`${a.mapTitle} podium (monster frags): ${podium.map((p) => p.name + " " + p.frags).join(", ")}; ${done} of ${losers.length} kills credited`);
+    if (podium[0]) sayAll(`${a.mapTitle} top monster slayers: ${podium.map((p, i) => (i + 1) + ". " + p.name + " (" + p.frags + ")").join("  ")}`);
   }
 }
 

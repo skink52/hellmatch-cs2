@@ -34,6 +34,8 @@ const CONFIG = {
   MONSTER_SCORE: 2,              // points per monster kill (a CS2 kill is worth 2); 0 = off
   MONSTER_SCORE_BOSS: 10,        // points for killing a boss
   MONSTER_SCORE_DEATHMATCH: false, // also for the monsters loose in deathmatch rounds (off: they aren't the game there)
+  MONSTER_PODIUM: true,          // Boss Battle: at round end the arena's top 3 monster killers get real CS2 kills, the others dying credited to them
+  MONSTER_PODIUM_SHARES: [50, 30, 20],   // how the others are shared out: 1st, 2nd, 3rd (like Space Racer's podium)
   MONSTER_KILL_COMMAND: "",      // e.g. "hm_monster_kill {slot} {boss} {monster}": a server command per monster kill, for a plugin
 
   // ---- kill credit
@@ -85,7 +87,7 @@ const CONFIG = {
   MAX_SOUNDS_PER_TICK: 24,
   MUSIC: true,                   // level music during rounds: long tracks in respawn rounds, short ones in one-life rounds
   MUSIC_GAP: 2,                  // seconds of quiet between tracks
-  MUSIC_OPENER: "every",         // the Hellmatch theme (trailer track): "every" round opens with it, "first" round after map load only, "off"
+  MUSIC_OPENER: "first+boss",    // the Hellmatch theme (trailer track) at round start: "first+boss" = the map's first round and its first Boss Battle round, "every" round, "first" round only, "off"
   SPAWN_BUDGET: 20,             // new props created per server tick at most (round start creates hundreds)
   HIDE_HUD_ON_SCOREBOARD: false,  // default for everyone; each player can switch it with !hud scores
   HUD_BUDGET: 600,               // HUD changes sent per server tick at most (the first draw for many players is spread out)

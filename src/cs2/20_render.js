@@ -82,10 +82,10 @@ class ArenaView {
   }
 
   findAnims() {
-    for (const [name, frames] of this.arena.level.anims) {
+    for (const [name, frames, tics] of this.arena.level.anims) {
       const ent = live(Instance.FindEntityByName(name));
       if (!ent) { warnOnce("anim" + name, "animated surface " + name + " is missing from the map"); continue; }
-      this.anims.push({ ent, frames, last: -1 });
+      this.anims.push({ ent, frames, tics: tics || ANIM_TICS, last: -1 });
     }
   }
 
@@ -115,10 +115,10 @@ class ArenaView {
       if (!live(m.ent)) continue;
       m.ent.Teleport({ position: { x: m.base.x, y: m.base.y, z: m.base.z + (h - m.h0) * ZSCALE } });
     }
-    // animated flats and walls: one skin per Doom animation frame, 8 tics each
-    const frame = Math.floor(a.leveltime / ANIM_TICS);
+    // animated flats and walls: one skin per Doom animation frame, 8 tics each; scrolling walls step their
+    // shifted-texture frames every few tics (1 pixel a tic, like Doom)
     for (const an of this.anims) {
-      const skin = frame % an.frames;
+      const skin = Math.floor(a.leveltime / an.tics) % an.frames;
       if (skin === an.last || !live(an.ent)) continue;
       an.last = skin;
       Instance.EntFireAtTarget({ target: an.ent, input: "Skin", value: skin });
