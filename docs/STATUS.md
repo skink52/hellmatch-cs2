@@ -398,7 +398,7 @@ Known/accepted: Doom's chase is greedy, so some jitter remains (relocation cover
 t=25/45 are the second the !spec was typed (pre-existing, also in the previous script); monster kills still not CS2 kills.
 
 ## Update 19 Oct 12:50 - !text (Doom-font text size), top-bar avatars (Zach 12:40)
-NOT DELIVERED YET (PC not linked when built): maps/scripts/freedm.js, panorama/styles/custom_game/freedm.css (+28 rules,
+Delivered 19 Oct 16:15 + verified: maps/scripts/freedm.js, panorama/styles/custom_game/freedm.css (+28 rules,
 nothing else changed), README/TESTING (19d). The CSS needs a compile (map build). NOT YET RUN IN CS2.
 - !text [normal|large|huge|small|tiny] per player (pe.textSize): class on fdm_screen; each line scales from its anchored
   edge, the second line of each pair is shifted by 9*(s-1) so pairs don't overlap; the message wrap width is 316/s.
