@@ -60,3 +60,7 @@ fresh implementation of Doom's rules. Hellmatch's own code, art and sound are fr
 
 Hellmatch is an unofficial fan project: not affiliated with or endorsed by the Freedoom project, id Software,
 Bethesda or Valve. Freedoom is named only to credit its content.
+
+## Shared files
+
+`test/types/point_script.d.ts`, `tools/dmx.py`, `tools/vmaplib.py` are master copies from [cs2mapping](https://github.com/skink52/cs2mapping) (`create/libsync.json`). Change them there and run `python3 create/libsync.py push`, or if a fix lands here first, `libsync.py pull` it into cs2mapping. `libsync.py check` shows drift.
