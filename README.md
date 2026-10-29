@@ -56,7 +56,7 @@ All game content — levels, textures, sprites, sounds, music, graphics and the 
 **Freedoom project** and its contributors, used under their BSD licence (`FREEDOOM_LICENSE.txt`,
 contributors in `FREEDOOM_CREDITS.txt`, music in `MUSIC_CREDITS.txt`). The music is rendered from Freedoom's
 MIDI files with libADLMIDI (Nuked OPL3) and the DMXOPL3 instrument bank by Shannon Freeman (MIT). The game logic is a
-fresh implementation of Doom's rules. The code in this repository is MIT-licensed; see `LICENSE`.
+fresh implementation of Doom's rules. Hellmatch's own code, art and sound are free for non-commercial use (PolyForm Noncommercial 1.0.0 / CC BY-NC 4.0, server use including donation/VIP servers allowed); the Freedoom content keeps its BSD licence. See `LICENSE`.
 
 Hellmatch is an unofficial fan project: not affiliated with or endorsed by the Freedoom project, id Software,
 Bethesda or Valve. Freedoom is named only to credit its content.

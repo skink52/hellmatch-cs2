@@ -47,4 +47,4 @@ cp test/types/point_script.d.ts out/addon/maps/scripts/ 2>/dev/null || true
 cp "${FREEDOOM_DIR:-freedoom}/COPYING.adoc" out/addon/FREEDOOM_LICENSE.txt
 cp "${FREEDOOM_DIR:-freedoom}/CREDITS" out/addon/FREEDOOM_CREDITS.txt
 # the Workshop upload carries the compiled GAME folder, so the licence and credits go there too
-cp out/addon/FREEDOOM_LICENSE.txt out/addon/FREEDOOM_CREDITS.txt out/addon/MUSIC_CREDITS.txt README_HELLMATCH.md out/game/
+cp LICENSE LICENSE-CC-BY-NC-4.0.txt out/addon/FREEDOOM_LICENSE.txt out/addon/FREEDOOM_CREDITS.txt out/addon/MUSIC_CREDITS.txt README_HELLMATCH.md out/game/
