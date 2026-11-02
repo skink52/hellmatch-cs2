@@ -1,5 +1,7 @@
 # Hellmatch CS2
 
+> **Moved.** This project now lives in the [cs2mapping](https://github.com/skink52/cs2mapping) repo at [`projects/hellmatch-cs2`](https://github.com/skink52/cs2mapping/tree/main/projects/hellmatch-cs2), with its full history. This repo is archived (read-only) and no longer updated.
+
 A retro 90s-style deathmatch running inside one Counter-Strike 2 map, with no server plugins, built from
 the [Freedoom](https://freedoom.github.io) project's deathmatch levels (FreeDM, all 32). The whole game —
 movement, weapons, items, doors, lifts, teleporters, frags — runs as a cs_script inside the map. Up to 64
